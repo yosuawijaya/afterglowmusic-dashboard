@@ -158,7 +158,11 @@ export default function Dashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newRelease),
+        body: JSON.stringify({
+          ...newRelease,
+          tracks,
+          coverImage
+        }),
       })
 
       if (response.ok) {
@@ -183,8 +187,14 @@ export default function Dashboard() {
           releaseDate: '',
           upc: '',
           genre: '',
-          format: ''
+          format: '',
+          price: 'standard',
+          territories: 'worldwide',
+          promotionText: ''
         })
+        setSelectedSubgenre('')
+        setTracks([{ title: '', artist: '', driveLink: '' }])
+        setCoverImage('')
         alert('Release created and email sent successfully!')
       } else {
         alert('Release created but failed to send email notification')
