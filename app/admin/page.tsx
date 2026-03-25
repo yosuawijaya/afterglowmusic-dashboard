@@ -18,16 +18,20 @@ interface Submission {
   releaseDate: string
 }
 
-// Mock users untuk reference (tidak dipakai lagi)
-const MOCK_USERS = [
-  { id: '1', email: 'admin@afterglowmusic.com', username: 'Admin', role: 'admin', createdAt: '2026-03-25' },
-]
+interface User {
+  id: string
+  email: string
+  username: string
+  role: 'admin' | 'user'
+  createdAt: string
+}
 
 export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'submissions' | 'users'>('submissions')
-  const [users, setUsers] = useState(MOCK_USERS)
+  const [users, setUsers] = useState<User[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [showAddUser, setShowAddUser] = useState(false)
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -43,8 +47,8 @@ export default function AdminPage() {
     }
 
     // Load submissions from Firestore (real-time)
-    const q = query(collection(db, 'submissions'), orderBy('submittedAt', 'desc'))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const submissionsQuery = query(collection(db, 'submissions'), orderBy('submittedAt', 'desc'))
+    const unsubscribeSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
       const submissionsData: Submission[] = []
       snapshot.forEach((doc) => {
         submissionsData.push({
@@ -56,7 +60,24 @@ export default function AdminPage() {
       setSubmissions(submissionsData)
     })
 
-    return () => unsubscribe()
+    // Load users from Firestore (real-time)
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'))
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+      const usersData: User[] = []
+      snapshot.forEach((doc) => {
+        usersData.push({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate().toISOString() || new Date().toISOString()
+        } as User)
+      })
+      setUsers(usersData)
+    })
+
+    return () => {
+      unsubscribeSubmissions()
+      unsubscribeUsers()
+    }
   }, [router])
 
   const handleLogout = () => {
@@ -123,6 +144,23 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error:', error)
       alert('Error rejecting release')
+    }
+  }
+
+  const handleAddUser = () => {
+    setShowAddUser(true)
+  }
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete user: ${userEmail}?`)) return
+
+    try {
+      // Note: This only deletes from Firestore, not Firebase Auth
+      // You'll need Firebase Admin SDK to delete from Auth
+      alert('User deletion requires Firebase Admin SDK. Please contact developer.')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error deleting user')
     }
   }
 
@@ -271,38 +309,181 @@ export default function AdminPage() {
               )}
             </>
           ) : (
-            <div className="releases-table">
-              <div className="table-header" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
-                <div>Email</div>
-                <div>Username</div>
-                <div>Role</div>
-                <div>Created At</div>
-                <div>Action</div>
+            <>
+              <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '18px', margin: 0 }}>All Users ({users.length})</h2>
+                <button 
+                  onClick={handleAddUser}
+                  style={{ 
+                    padding: '10px 20px', 
+                    background: '#3498db', 
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  + Add User
+                </button>
               </div>
-              {users.map((user) => (
-                <div key={user.id} className="table-row" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
-                  <div>{user.email}</div>
-                  <div>{user.username}</div>
-                  <div>
-                    <span className={`status-badge ${user.role === 'admin' ? 'status-active' : ''}`} style={{ textTransform: 'capitalize' }}>
-                      {user.role}
-                    </span>
-                  </div>
-                  <div>{new Date(user.createdAt).toLocaleDateString('en-GB')}</div>
-                  <div>
-                    {user.role !== 'admin' && (
-                      <button 
-                        className="btn-remove" 
-                        onClick={() => alert('Delete user: ' + user.email)}
-                        style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', height: 'auto' }}
-                      >
-                        Delete
-                      </button>
-                    )}
+
+              {showAddUser && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 1000
+                }}>
+                  <div style={{
+                    background: 'white',
+                    padding: '30px',
+                    borderRadius: '8px',
+                    width: '90%',
+                    maxWidth: '500px'
+                  }}>
+                    <h2 style={{ marginBottom: '20px' }}>Add New User</h2>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault()
+                      const formData = new FormData(e.currentTarget)
+                      const email = formData.get('email') as string
+                      const password = formData.get('password') as string
+                      const username = formData.get('username') as string
+                      const role = formData.get('role') as string
+
+                      try {
+                        const response = await fetch('/api/create-user', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email, password, username, role })
+                        })
+
+                        const result = await response.json()
+                        
+                        if (result.success) {
+                          alert('User created successfully!')
+                          setShowAddUser(false)
+                        } else {
+                          alert('Error: ' + (result.error || 'Failed to create user'))
+                        }
+                      } catch (error) {
+                        console.error('Error:', error)
+                        alert('Error creating user')
+                      }
+                    }}>
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Email</label>
+                        <input 
+                          type="email" 
+                          name="email" 
+                          required 
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Password</label>
+                        <input 
+                          type="password" 
+                          name="password" 
+                          required 
+                          minLength={6}
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Username</label>
+                        <input 
+                          type="text" 
+                          name="username" 
+                          required 
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '20px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Role</label>
+                        <select 
+                          name="role" 
+                          required 
+                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button 
+                          type="button"
+                          onClick={() => setShowAddUser(false)}
+                          style={{ 
+                            padding: '10px 20px', 
+                            background: '#95a5a6', 
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit"
+                          style={{ 
+                            padding: '10px 20px', 
+                            background: '#27ae60', 
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                          }}
+                        >
+                          Create User
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+
+              <div className="releases-table">
+                <div className="table-header" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
+                  <div>Email</div>
+                  <div>Username</div>
+                  <div>Role</div>
+                  <div>Created At</div>
+                  <div>Action</div>
+                </div>
+                {users.map((user) => (
+                  <div key={user.id} className="table-row" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
+                    <div>{user.email}</div>
+                    <div>{user.username}</div>
+                    <div>
+                      <span className={`status-badge ${user.role === 'admin' ? 'status-active' : ''}`} style={{ textTransform: 'capitalize' }}>
+                        {user.role}
+                      </span>
+                    </div>
+                    <div>{new Date(user.createdAt).toLocaleDateString('en-GB')}</div>
+                    <div>
+                      {user.role !== 'admin' && (
+                        <button 
+                          className="btn-remove" 
+                          onClick={() => handleDeleteUser(user.id, user.email)}
+                          style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', height: 'auto' }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
