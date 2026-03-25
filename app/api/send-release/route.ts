@@ -8,7 +8,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { 
       title, 
-      artist, 
+      artist,
+      featuringArtists,
       label, 
       releaseDate, 
       genre, 
@@ -17,210 +18,341 @@ export async function POST(request: Request) {
       territories,
       promotionText,
       tracks,
-      coverImage
+      coverImage,
+      userEmail
     } = body
 
-    const tracksHTML = tracks?.map((track: any, index: number) => `
-      <div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 4px;">
-        <div style="font-weight: 600; color: #1a202c; margin-bottom: 5px;">
-          ${index + 1}. ${track.title}
-        </div>
-        <div style="font-size: 13px; color: #718096;">
-          Artist: ${track.artist || 'Same as release'}
-        </div>
-        <div style="font-size: 13px; color: #3182ce; margin-top: 5px;">
-          <a href="${track.driveLink}" target="_blank" style="color: #3182ce;">
-            📁 Google Drive Link
-          </a>
-        </div>
-      </div>
-    `).join('') || '<p>No tracks added</p>'
+    // SECURITY: Sanitize inputs to prevent XSS
+    const sanitize = (str: string) => {
+      if (!str) return ''
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;')
+    }
 
-    const data = await resend.emails.send({
-      from: 'Afterglow Music <onboarding@resend.dev>',
+    const safeTitle = sanitize(title)
+    const safeArtist = sanitize(artist)
+    const safeFeaturingArtists = sanitize(featuringArtists)
+    const safeGenre = sanitize(genre)
+    const safeFormat = sanitize(format)
+    const safePromotionText = sanitize(promotionText)
+
+    // Email 1: Ke Admin (detail lengkap)
+    const adminEmail = await resend.emails.send({
+      from: 'Afterglow Music <releases@mamangstudio.web.id>',
       to: [process.env.RECIPIENT_EMAIL || 'your-email@example.com'],
-      subject: `🎵 New Release Submission: ${title}`,
+      subject: `New Release Submission: ${safeTitle} - ${safeArtist}`,
       html: `
         <!DOCTYPE html>
         <html>
           <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                background: #f7fafc;
+              * {
                 margin: 0;
                 padding: 0;
+                box-sizing: border-box;
               }
-              .container {
-                max-width: 700px;
-                margin: 0 auto;
-                background: white;
+              body {
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                line-height: 1.6;
+                color: #2c3e50;
+                background: #ecf0f1;
+              }
+              .email-wrapper {
+                max-width: 650px;
+                margin: 40px auto;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
               }
               .header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 30px;
+                background: #000000;
+                padding: 40px 30px;
                 text-align: center;
+                border-bottom: 4px solid #e74c3c;
               }
-              .header h1 {
-                margin: 0;
-                font-size: 28px;
+              .logo {
+                font-size: 32px;
+                font-weight: 700;
+                color: #ffffff;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
               }
-              .header p {
-                margin: 10px 0 0 0;
-                opacity: 0.9;
-                font-size: 16px;
+              .tagline {
+                color: #bdc3c7;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+              }
+              .alert-banner {
+                background: #e74c3c;
+                color: white;
+                padding: 15px 30px;
+                text-align: center;
+                font-weight: 600;
+                font-size: 14px;
+                letter-spacing: 0.5px;
               }
               .content {
-                padding: 30px;
+                padding: 40px 30px;
               }
-              .section {
-                margin-bottom: 30px;
+              .release-title {
+                font-size: 24px;
+                font-weight: 700;
+                color: #000000;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
               }
-              .section-title {
+              .artist-name {
                 font-size: 18px;
+                color: #7f8c8d;
+                margin-bottom: 30px;
+                font-weight: 500;
+              }
+              .info-grid {
+                display: table;
+                width: 100%;
+                margin-bottom: 30px;
+                border: 1px solid #ecf0f1;
+              }
+              .info-row {
+                display: table-row;
+              }
+              .info-row:nth-child(even) {
+                background: #f8f9fa;
+              }
+              .info-label {
+                display: table-cell;
+                padding: 14px 20px;
                 font-weight: 600;
-                color: #1a202c;
-                margin-bottom: 15px;
+                color: #34495e;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                width: 40%;
+                border-bottom: 1px solid #ecf0f1;
+              }
+              .info-value {
+                display: table-cell;
+                padding: 14px 20px;
+                color: #2c3e50;
+                font-size: 14px;
+                border-bottom: 1px solid #ecf0f1;
+              }
+              .section-header {
+                font-size: 16px;
+                font-weight: 700;
+                color: #000000;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin: 40px 0 20px 0;
                 padding-bottom: 10px;
-                border-bottom: 2px solid #e2e8f0;
+                border-bottom: 3px solid #000000;
               }
-              .field {
-                margin-bottom: 15px;
-                padding: 12px;
-                background: #f7fafc;
-                border-radius: 4px;
-                display: flex;
-                justify-content: space-between;
-              }
-              .label {
-                font-weight: 600;
-                color: #4a5568;
-                font-size: 14px;
-              }
-              .value {
-                color: #1a202c;
-                font-size: 14px;
-                text-align: right;
+              .cover-container {
+                text-align: center;
+                margin: 30px 0;
+                padding: 20px;
+                background: #f8f9fa;
               }
               .cover-image {
-                width: 200px;
-                height: 200px;
-                object-fit: cover;
-                border-radius: 8px;
-                margin: 15px auto;
-                display: block;
+                max-width: 300px;
+                width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              }
+              .track-list {
+                margin: 20px 0;
+              }
+              .track-item {
+                background: #ffffff;
+                border: 1px solid #e0e0e0;
+                padding: 18px 20px;
+                margin-bottom: 12px;
+              }
+              .track-number {
+                display: inline-block;
+                background: #000000;
+                color: white;
+                width: 28px;
+                height: 28px;
+                line-height: 28px;
+                text-align: center;
+                border-radius: 50%;
+                font-weight: 700;
+                font-size: 13px;
+                margin-right: 12px;
+              }
+              .track-title {
+                font-weight: 700;
+                color: #000000;
+                font-size: 15px;
+                margin-bottom: 6px;
+              }
+              .track-artist {
+                color: #7f8c8d;
+                font-size: 13px;
+                margin-bottom: 8px;
+              }
+              .track-link {
+                display: inline-block;
+                color: #3498db;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 6px 12px;
+                background: #ecf0f1;
+                border-radius: 4px;
+                margin-top: 6px;
+              }
+              .track-link:hover {
+                background: #3498db;
+                color: white;
+              }
+              .promo-box {
+                background: #f8f9fa;
+                border-left: 4px solid #e74c3c;
+                padding: 20px;
+                margin: 20px 0;
+                font-size: 14px;
+                line-height: 1.8;
+                color: #2c3e50;
               }
               .footer {
-                background: #f7fafc;
-                padding: 20px;
+                background: #34495e;
+                color: #bdc3c7;
+                padding: 30px;
                 text-align: center;
-                color: #718096;
-                font-size: 13px;
-                border-top: 1px solid #e2e8f0;
-              }
-              .badge {
-                display: inline-block;
-                padding: 4px 12px;
-                background: #48bb78;
-                color: white;
-                border-radius: 12px;
                 font-size: 12px;
-                font-weight: 500;
+              }
+              .footer-logo {
+                color: #ffffff;
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 10px;
+              }
+              .footer-text {
+                margin: 8px 0;
+                line-height: 1.6;
+              }
+              .timestamp {
+                color: #95a5a6;
+                font-size: 11px;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #4a5f7f;
               }
             </style>
           </head>
           <body>
-            <div class="container">
+            <div class="email-wrapper">
               <div class="header">
-                <h1>🎵 New Release Submission</h1>
-                <p>Afterglow Music Dashboard</p>
+                <div class="logo">AFTERGLOW MUSIC</div>
+                <div class="tagline">Digital Distribution</div>
+              </div>
+              
+              <div class="alert-banner">
+                NEW RELEASE SUBMISSION RECEIVED
               </div>
               
               <div class="content">
-                <!-- Release Information -->
-                <div class="section">
-                  <div class="section-title">📀 Release Information</div>
-                  <div class="field">
-                    <span class="label">Release Title</span>
-                    <span class="value">${title}</span>
+                <div class="release-title">${safeTitle}</div>
+                <div class="artist-name">${safeArtist}${safeFeaturingArtists ? ` feat. ${safeFeaturingArtists}` : ''}</div>
+                
+                <div class="section-header">Release Details</div>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <div class="info-label">Label</div>
+                    <div class="info-value">${sanitize(label)}</div>
                   </div>
-                  <div class="field">
-                    <span class="label">Primary Artist</span>
-                    <span class="value">${artist}</span>
+                  <div class="info-row">
+                    <div class="info-label">Genre</div>
+                    <div class="info-value">${safeGenre}</div>
                   </div>
-                  <div class="field">
-                    <span class="label">Label</span>
-                    <span class="value">${label}</span>
+                  <div class="info-row">
+                    <div class="info-label">Format</div>
+                    <div class="info-value">${safeFormat}</div>
                   </div>
-                  <div class="field">
-                    <span class="label">Genre</span>
-                    <span class="value">${genre}</span>
+                  <div class="info-row">
+                    <div class="info-label">Release Date</div>
+                    <div class="info-value">${releaseDate || 'TBD'}</div>
                   </div>
-                  <div class="field">
-                    <span class="label">Format</span>
-                    <span class="value">${format}</span>
+                  <div class="info-row">
+                    <div class="info-label">Price Tier</div>
+                    <div class="info-value">${price ? price.charAt(0).toUpperCase() + price.slice(1) : 'Standard'}</div>
                   </div>
-                  <div class="field">
-                    <span class="label">Release Date</span>
-                    <span class="value">${releaseDate || 'Not specified'}</span>
+                  <div class="info-row">
+                    <div class="info-label">Distribution</div>
+                    <div class="info-value">${territories === 'worldwide' ? 'Worldwide - 240 Territories' : 'Selected Territories'}</div>
                   </div>
+                  ${body.spotifyUrl ? `
+                  <div class="info-row">
+                    <div class="info-label">Spotify Artist</div>
+                    <div class="info-value">${body.spotifyUrl.startsWith('http') ? `<a href="${body.spotifyUrl}" target="_blank" style="color: #1DB954;">${body.spotifyUrl}</a>` : body.spotifyUrl}</div>
+                  </div>
+                  ` : ''}
+                  ${body.appleMusicUrl ? `
+                  <div class="info-row">
+                    <div class="info-label">Apple Music Artist</div>
+                    <div class="info-value">${body.appleMusicUrl.startsWith('http') ? `<a href="${body.appleMusicUrl}" target="_blank" style="color: #FA243C;">${body.appleMusicUrl}</a>` : body.appleMusicUrl}</div>
+                  </div>
+                  ` : ''}
                 </div>
 
-                <!-- Cover Art -->
                 ${coverImage ? `
-                <div class="section">
-                  <div class="section-title">🎨 Cover Art</div>
-                  <img src="${coverImage}" alt="Cover Art" class="cover-image" />
+                <div class="section-header">Cover Artwork</div>
+                <div class="cover-container">
+                  <p style="margin: 0; color: #7f8c8d;">
+                    <a href="${coverImage}" target="_blank" style="color: #3498db; text-decoration: none;">
+                      📁 View Cover Art on Google Drive
+                    </a>
+                  </p>
                 </div>
                 ` : ''}
 
-                <!-- Tracks -->
-                <div class="section">
-                  <div class="section-title">🎼 Track List (${tracks?.length || 0} tracks)</div>
-                  ${tracksHTML}
+                <div class="section-header">Track Listing</div>
+                <div class="track-list">
+                  ${tracks?.map((track: any, index: number) => `
+                    <div class="track-item">
+                      <span class="track-number">${index + 1}</span>
+                      <div style="display: inline-block; vertical-align: top; width: calc(100% - 45px);">
+                        <div class="track-title">${sanitize(track.title)}</div>
+                        <div class="track-artist">Artist: ${sanitize(track.artist || artist)}</div>
+                        <a href="${sanitize(track.driveLink)}" class="track-link" target="_blank">📁 View Audio File</a>
+                      </div>
+                    </div>
+                  `).join('') || '<p>No tracks specified</p>'}
                 </div>
 
-                <!-- Pricing & Distribution -->
-                <div class="section">
-                  <div class="section-title">💰 Pricing & Distribution</div>
-                  <div class="field">
-                    <span class="label">Price Tier</span>
-                    <span class="value">${price || 'Standard'}</span>
-                  </div>
-                  <div class="field">
-                    <span class="label">Territories</span>
-                    <span class="value">${territories === 'worldwide' ? 'Worldwide (240 territories)' : 'Selected territories'}</span>
-                  </div>
-                  <div class="field">
-                    <span class="label">Distribution</span>
-                    <span class="value">17+ stores (Spotify, Apple Music, etc.)</span>
-                  </div>
-                </div>
-
-                <!-- Promotion -->
                 ${promotionText ? `
-                <div class="section">
-                  <div class="section-title">📣 Promotion</div>
-                  <div style="background: #f7fafc; padding: 15px; border-radius: 4px; white-space: pre-wrap;">
-                    ${promotionText}
-                  </div>
-                </div>
+                <div class="section-header">Promotional Information</div>
+                <div class="promo-box">${safePromotionText.replace(/\n/g, '<br>')}</div>
                 ` : ''}
               </div>
 
               <div class="footer">
-                <p><strong>Submitted from Afterglow Music Dashboard</strong></p>
-                <p>${new Date().toLocaleString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</p>
+                <div class="footer-logo">AFTERGLOW MUSIC</div>
+                <div class="footer-text">
+                  Digital Music Distribution & Rights Management<br>
+                  mamangstudio.web.id
+                </div>
+                <div class="timestamp">
+                  Submitted: ${new Date().toLocaleString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                  })}
+                </div>
               </div>
             </div>
           </body>
@@ -228,7 +360,246 @@ export async function POST(request: Request) {
       `,
     })
 
-    return NextResponse.json({ success: true, data })
+    // Email 2: Ke User (konfirmasi submission)
+    const userEmailResponse = await resend.emails.send({
+      from: 'Afterglow Music <releases@mamangstudio.web.id>',
+      to: [body.userEmail],
+      subject: `Release Submission Received: ${title}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              body {
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                line-height: 1.6;
+                color: #2c3e50;
+                background: #ecf0f1;
+              }
+              .email-wrapper {
+                max-width: 650px;
+                margin: 40px auto;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              }
+              .header {
+                background: #000000;
+                padding: 40px 30px;
+                text-align: center;
+                border-bottom: 4px solid #27ae60;
+              }
+              .logo {
+                font-size: 32px;
+                font-weight: 700;
+                color: #ffffff;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+              }
+              .tagline {
+                color: #bdc3c7;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+              }
+              .alert-banner {
+                background: #27ae60;
+                color: white;
+                padding: 15px 30px;
+                text-align: center;
+                font-weight: 600;
+                font-size: 14px;
+                letter-spacing: 0.5px;
+              }
+              .content {
+                padding: 40px 30px;
+              }
+              .message-box {
+                background: #f8f9fa;
+                border-left: 4px solid #27ae60;
+                padding: 25px;
+                margin: 30px 0;
+                font-size: 15px;
+                line-height: 1.8;
+                color: #2c3e50;
+              }
+              .release-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: #000000;
+                margin-bottom: 8px;
+              }
+              .artist-name {
+                font-size: 16px;
+                color: #7f8c8d;
+                margin-bottom: 25px;
+              }
+              .info-box {
+                background: #ffffff;
+                border: 1px solid #e0e0e0;
+                padding: 20px;
+                margin: 20px 0;
+              }
+              .info-row {
+                padding: 10px 0;
+                border-bottom: 1px solid #ecf0f1;
+                display: flex;
+                justify-content: space-between;
+              }
+              .info-row:last-child {
+                border-bottom: none;
+              }
+              .info-label {
+                font-weight: 600;
+                color: #34495e;
+                font-size: 13px;
+              }
+              .info-value {
+                color: #2c3e50;
+                font-size: 13px;
+              }
+              .status-badge {
+                display: inline-block;
+                background: #f39c12;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 13px;
+                margin: 20px 0;
+              }
+              .next-steps {
+                background: #fff3cd;
+                border: 1px solid #ffc107;
+                padding: 20px;
+                margin: 25px 0;
+                border-radius: 4px;
+              }
+              .next-steps h3 {
+                color: #856404;
+                font-size: 15px;
+                margin-bottom: 12px;
+              }
+              .next-steps ul {
+                margin-left: 20px;
+                color: #856404;
+              }
+              .next-steps li {
+                margin: 8px 0;
+                font-size: 14px;
+              }
+              .footer {
+                background: #34495e;
+                color: #bdc3c7;
+                padding: 30px;
+                text-align: center;
+                font-size: 12px;
+              }
+              .footer-logo {
+                color: #ffffff;
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 10px;
+              }
+              .footer-text {
+                margin: 8px 0;
+                line-height: 1.6;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="email-wrapper">
+              <div class="header">
+                <div class="logo">AFTERGLOW MUSIC</div>
+                <div class="tagline">Digital Distribution</div>
+              </div>
+              
+              <div class="alert-banner">
+                ✓ SUBMISSION RECEIVED
+              </div>
+              
+              <div class="content">
+                <h2 style="font-size: 20px; color: #000; margin-bottom: 20px;">Thank You for Your Submission!</h2>
+                
+                <div class="message-box">
+                  <p style="margin-bottom: 15px;">
+                    <strong>Hi ${artist},</strong>
+                  </p>
+                  <p style="margin-bottom: 15px;">
+                    We've successfully received your release submission. Our team is now reviewing your content and will process it for distribution.
+                  </p>
+                  <p>
+                    You'll receive updates via email as your release moves through our review and distribution process.
+                  </p>
+                </div>
+
+                <div class="release-title">${safeTitle}</div>
+                <div class="artist-name">${safeArtist}${safeFeaturingArtists ? ` feat. ${safeFeaturingArtists}` : ''}</div>
+                
+                <span class="status-badge">⏳ Under Review</span>
+
+                <div class="info-box">
+                  <div class="info-row">
+                    <span class="info-label">Format</span>
+                    <span class="info-value">${safeFormat}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Genre</span>
+                    <span class="info-value">${safeGenre}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Release Date</span>
+                    <span class="info-value">${releaseDate || 'TBD'}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Tracks</span>
+                    <span class="info-value">${tracks?.length || 0} track(s)</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Distribution</span>
+                    <span class="info-value">${territories === 'worldwide' ? 'Worldwide' : 'Selected Territories'}</span>
+                  </div>
+                </div>
+
+                <div class="next-steps">
+                  <h3>📋 What Happens Next?</h3>
+                  <ul>
+                    <li>Our team will review your audio files and metadata</li>
+                    <li>We'll verify your cover artwork meets platform requirements</li>
+                    <li>Your release will be prepared for distribution to all platforms</li>
+                    <li>You'll receive confirmation once your release goes live</li>
+                  </ul>
+                </div>
+
+                <p style="margin-top: 30px; font-size: 14px; color: #7f8c8d;">
+                  <strong>Questions?</strong> Feel free to reply to this email or contact our support team.
+                </p>
+              </div>
+
+              <div class="footer">
+                <div class="footer-logo">AFTERGLOW MUSIC</div>
+                <div class="footer-text">
+                  Digital Music Distribution & Rights Management<br>
+                  mamangstudio.web.id
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      adminEmail: adminEmail.data,
+      userEmail: userEmailResponse.data 
+    })
   } catch (error) {
     console.error('Error sending email:', error)
     return NextResponse.json(

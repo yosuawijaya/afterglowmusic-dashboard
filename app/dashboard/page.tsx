@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 interface Release {
   id: number
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const [newRelease, setNewRelease] = useState({
     title: '',
     artist: '',
+    featuringArtists: '',
     label: 'Afterglow Music',
     releaseDate: '',
     upc: '',
@@ -34,7 +37,9 @@ export default function Dashboard() {
     format: '',
     price: 'standard',
     territories: 'worldwide',
-    promotionText: ''
+    promotionText: '',
+    spotifyUrl: '',
+    appleMusicUrl: ''
   })
   
   const genres: { [key: string]: string[] } = {
@@ -65,6 +70,22 @@ export default function Dashboard() {
     setSubgenres(genres[genre] || [])
     setSelectedSubgenre('')
   }
+
+  const goToNextTab = () => {
+    const tabs = ['release', 'upload', 'tracks', 'price', 'territories', 'releasedate', 'promotion', 'submission']
+    const currentIndex = tabs.indexOf(activeTab)
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1])
+    }
+  }
+
+  const goToPreviousTab = () => {
+    const tabs = ['release', 'upload', 'tracks', 'price', 'territories', 'releasedate', 'promotion', 'submission']
+    const currentIndex = tabs.indexOf(activeTab)
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1])
+    }
+  }
   
   const addTrack = () => {
     setTracks([...tracks, { title: '', artist: '', driveLink: '' }])
@@ -80,56 +101,7 @@ export default function Dashboard() {
     setTracks(newTracks)
   }
 
-  const [releases, setReleases] = useState<Release[]>([
-    {
-      id: 1,
-      title: 'Jangan Lelah',
-      artist: 'Yosua Wijaya',
-      label: 'Ruang Nada',
-      releaseDate: '04/05/2025',
-      tracks: 1,
-      upc: '3618026456779',
-      territories: 240,
-      stores: 17,
-      cover: '🎵'
-    },
-    {
-      id: 2,
-      title: 'Doa Kami',
-      artist: 'Yosua Wijaya',
-      label: 'Ruang Nada',
-      releaseDate: '02/22/2026',
-      tracks: 1,
-      upc: '3618026077356',
-      territories: 240,
-      stores: 17,
-      cover: '🎵'
-    },
-    {
-      id: 3,
-      title: 'Sekali Yesus, Selamanya Yesus',
-      artist: 'Yosua Wijaya',
-      label: 'Ruang Nada',
-      releaseDate: '01/16/2026',
-      tracks: 1,
-      upc: '3618026024177',
-      territories: 240,
-      stores: 17,
-      cover: '🎵'
-    },
-    {
-      id: 4,
-      title: 'Dengan Apakah Ku Balas',
-      artist: 'Yosua Wijaya',
-      label: 'Ruang Nada',
-      releaseDate: '12/30/2025',
-      tracks: 1,
-      upc: '3618025960965',
-      territories: 240,
-      stores: 17,
-      cover: '🎵'
-    }
-  ])
+  const [releases, setReleases] = useState<Release[]>([])
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn')
@@ -144,12 +116,117 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn')
+    localStorage.removeItem('userEmail')
     localStorage.removeItem('username')
+    localStorage.removeItem('userRole')
     router.push('/')
   }
 
   const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // VALIDATION - Check all required fields
+    if (!newRelease.title.trim()) {
+      alert('Release title is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!newRelease.artist.trim()) {
+      alert('Primary artist is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!newRelease.genre) {
+      alert('Genre is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!selectedSubgenre) {
+      alert('Subgenre is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!newRelease.format) {
+      alert('Format is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!newRelease.spotifyUrl.trim()) {
+      alert('Spotify Artist URL is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!newRelease.appleMusicUrl.trim()) {
+      alert('Apple Music Artist URL is required')
+      setActiveTab('release')
+      return
+    }
+    
+    if (!coverImage.trim()) {
+      alert('Cover art link is required')
+      setActiveTab('upload')
+      return
+    }
+    
+    // Validate cover art is a valid URL
+    try {
+      new URL(coverImage)
+    } catch {
+      alert('Cover art must be a valid URL')
+      setActiveTab('upload')
+      return
+    }
+    
+    // Validate tracks
+    if (tracks.length === 0) {
+      alert('At least one track is required')
+      setActiveTab('tracks')
+      return
+    }
+    
+    for (let i = 0; i < tracks.length; i++) {
+      if (!tracks[i].title.trim()) {
+        alert(`Track ${i + 1}: Title is required`)
+        setActiveTab('tracks')
+        return
+      }
+      
+      if (!tracks[i].driveLink.trim()) {
+        alert(`Track ${i + 1}: Google Drive link is required`)
+        setActiveTab('tracks')
+        return
+      }
+      
+      // Validate drive link is a valid URL
+      try {
+        new URL(tracks[i].driveLink)
+      } catch {
+        alert(`Track ${i + 1}: Google Drive link must be a valid URL`)
+        setActiveTab('tracks')
+        return
+      }
+    }
+    
+    if (!newRelease.releaseDate) {
+      alert('Release date is required')
+      setActiveTab('releasedate')
+      return
+    }
+    
+    // Get user email from localStorage
+    const userEmail = localStorage.getItem('userEmail') || ''
+    
+    if (!userEmail) {
+      alert('User not logged in')
+      router.push('/')
+      return
+    }
     
     // Send email notification
     try {
@@ -161,11 +238,38 @@ export default function Dashboard() {
         body: JSON.stringify({
           ...newRelease,
           tracks,
-          coverImage
+          coverImage,
+          userEmail
         }),
       })
 
       if (response.ok) {
+        // Save submission to Firestore
+        try {
+          await addDoc(collection(db, 'submissions'), {
+            title: newRelease.title,
+            artist: newRelease.artist,
+            featuringArtists: newRelease.featuringArtists || '',
+            userEmail: userEmail,
+            userId: localStorage.getItem('userId') || '',
+            genre: newRelease.genre,
+            format: newRelease.format,
+            tracks: tracks.length,
+            trackDetails: tracks,
+            coverImage: coverImage,
+            spotifyUrl: newRelease.spotifyUrl,
+            appleMusicUrl: newRelease.appleMusicUrl,
+            price: newRelease.price,
+            territories: newRelease.territories,
+            promotionText: newRelease.promotionText,
+            status: 'pending',
+            submittedAt: serverTimestamp(),
+            releaseDate: newRelease.releaseDate
+          })
+        } catch (error) {
+          console.error('Error saving to Firestore:', error)
+        }
+
         const release: Release = {
           id: releases.length + 1,
           title: newRelease.title,
@@ -183,6 +287,7 @@ export default function Dashboard() {
         setNewRelease({
           title: '',
           artist: '',
+          featuringArtists: '',
           label: 'Afterglow Music',
           releaseDate: '',
           upc: '',
@@ -190,7 +295,9 @@ export default function Dashboard() {
           format: '',
           price: 'standard',
           territories: 'worldwide',
-          promotionText: ''
+          promotionText: '',
+          spotifyUrl: '',
+          appleMusicUrl: ''
         })
         setSelectedSubgenre('')
         setTracks([{ title: '', artist: '', driveLink: '' }])
@@ -350,6 +457,20 @@ export default function Dashboard() {
                         />
                       </div>
                       <div className="form-col">
+                        <label>Featuring Artists (optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Artist 2, Artist 3"
+                          value={newRelease.featuringArtists}
+                          onChange={(e) => setNewRelease({...newRelease, featuringArtists: e.target.value})}
+                        />
+                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                          Separate multiple artists with commas
+                        </small>
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-col">
                         <label>Production Year *</label>
                         <select>
                           <option>Select a year</option>
@@ -357,6 +478,36 @@ export default function Dashboard() {
                           <option>2025</option>
                           <option>2024</option>
                         </select>
+                      </div>
+                      <div className="form-col">
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-col">
+                        <label>Spotify Artist URL *</label>
+                        <input
+                          type="text"
+                          placeholder="https://open.spotify.com/artist/... or type: I don't have artist profile yet"
+                          value={newRelease.spotifyUrl}
+                          onChange={(e) => setNewRelease({...newRelease, spotifyUrl: e.target.value})}
+                          required
+                        />
+                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                          Enter your Spotify artist URL or type "I don't have artist profile yet"
+                        </small>
+                      </div>
+                      <div className="form-col">
+                        <label>Apple Music Artist URL *</label>
+                        <input
+                          type="text"
+                          placeholder="https://music.apple.com/artist/... or type: I don't have artist profile yet"
+                          value={newRelease.appleMusicUrl}
+                          onChange={(e) => setNewRelease({...newRelease, appleMusicUrl: e.target.value})}
+                          required
+                        />
+                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                          Enter your Apple Music artist URL or type "I don't have artist profile yet"
+                        </small>
                       </div>
                     </div>
                     <div className="form-row">
@@ -452,41 +603,29 @@ export default function Dashboard() {
 
                 {activeTab === 'upload' && (
                   <div className="upload-section">
-                    <h3>Upload Cover Art</h3>
-                    <div className="upload-area">
-                      <div className="upload-box">
-                        {coverImage ? (
-                          <img src={coverImage} alt="Cover" style={{ width: '200px', height: '200px', objectFit: 'cover' }} />
-                        ) : (
-                          <div className="upload-placeholder">
-                            <svg width="48" height="48" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
-                            </svg>
-                            <p>Click to upload or drag and drop</p>
-                            <p style={{ fontSize: '12px', color: '#718096' }}>JPG or PNG (min 3000x3000px)</p>
-                          </div>
-                        )}
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              const reader = new FileReader()
-                              reader.onloadend = () => {
-                                setCoverImage(reader.result as string)
-                              }
-                              reader.readAsDataURL(file)
-                            }
-                          }}
-                          style={{ display: 'none' }}
-                          id="cover-upload"
+                    <h3>Cover Art</h3>
+                    <div className="form-row">
+                      <div className="form-col">
+                        <label>Google Drive Cover Art Link *</label>
+                        <input
+                          type="url"
+                          placeholder="https://drive.google.com/file/d/..."
+                          value={coverImage}
+                          onChange={(e) => setCoverImage(e.target.value)}
+                          required
                         />
-                        <label htmlFor="cover-upload" className="btn-upload">
-                          Choose File
-                        </label>
+                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                          Upload your cover art to Google Drive and paste the shareable link here (min 3000x3000px)
+                        </small>
                       </div>
                     </div>
+                    {coverImage && (
+                      <div style={{ marginTop: '20px', padding: '15px', background: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+                        <p style={{ fontSize: '13px', color: '#1e40af', margin: 0 }}>
+                          ✓ Cover art link added
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -646,9 +785,20 @@ export default function Dashboard() {
                 )}
 
                 <div className="form-actions">
-                  <button type="submit" className="btn-save">
-                    Save & Submit
-                  </button>
+                  {activeTab !== 'release' && (
+                    <button type="button" className="btn-secondary" onClick={goToPreviousTab}>
+                      ← Previous
+                    </button>
+                  )}
+                  {activeTab !== 'submission' ? (
+                    <button type="button" className="btn-primary" onClick={goToNextTab}>
+                      Next →
+                    </button>
+                  ) : (
+                    <button type="submit" className="btn-save">
+                      Save & Submit
+                    </button>
+                  )}
                 </div>
               </form>
             </div>

@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase'
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -15,44 +17,47 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      let email = identifier
+      // Sign in with Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
 
-      // Check if identifier is username (not email format)
-      if (!identifier.includes('@')) {
-        // Get email from username
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('username', identifier)
-          .single()
-
-        if (!profile) {
-          throw new Error('Username not found')
-        }
-        email = profile.email
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      
+      if (!userDoc.exists()) {
+        throw new Error('User data not found')
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const userData = userDoc.data()
 
-      if (error) throw error
+      // Save to localStorage for quick access
+      localStorage.setItem('isLoggedIn', 'true')
+      localStorage.setItem('userEmail', user.email || '')
+      localStorage.setItem('username', userData.username || 'User')
+      localStorage.setItem('userRole', userData.role || 'user')
+      localStorage.setItem('userId', user.uid)
 
-      // Check user role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, username')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profile?.role === 'admin') {
+      // Redirect based on role
+      if (userData.role === 'admin') {
         router.push('/admin')
       } else {
         router.push('/dashboard')
       }
     } catch (error: any) {
-      alert('Login failed: ' + error.message)
+      console.error('Login error:', error)
+      let errorMessage = 'Login failed'
+      
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password'
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = 'User not found'
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Wrong password'
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later'
+      }
+      
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -64,12 +69,12 @@ export default function LoginPage() {
         <div className="login-logo">Afterglow Music</div>
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label>Email or Username</label>
+            <label>Email</label>
             <input
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Enter email or username"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter email"
               required
             />
           </div>

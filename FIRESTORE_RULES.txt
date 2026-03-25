@@ -1,0 +1,50 @@
+// Copy paste ini ke Firebase Console → Firestore Database → Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function untuk check string tidak kosong
+    function isNotEmpty(field) {
+      return request.resource.data[field] is string && 
+             request.resource.data[field].size() > 0;
+    }
+    
+    // Users collection - hanya bisa read sendiri
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Submissions collection
+    match /submissions/{submissionId} {
+      // Semua authenticated user bisa read
+      allow read: if request.auth != null;
+      
+      // User bisa create submission dengan VALIDASI LENGKAP
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid &&
+                      // Required fields validation
+                      isNotEmpty('title') &&
+                      isNotEmpty('artist') &&
+                      isNotEmpty('userEmail') &&
+                      isNotEmpty('genre') &&
+                      isNotEmpty('format') &&
+                      isNotEmpty('coverImage') &&
+                      isNotEmpty('spotifyUrl') &&
+                      isNotEmpty('appleMusicUrl') &&
+                      isNotEmpty('releaseDate') &&
+                      // Status must be pending
+                      request.resource.data.status == 'pending' &&
+                      // Tracks must be array with at least 1 item
+                      request.resource.data.tracks is int &&
+                      request.resource.data.tracks > 0 &&
+                      request.resource.data.trackDetails is list &&
+                      request.resource.data.trackDetails.size() > 0;
+      
+      // Hanya admin yang bisa update/delete
+      allow update, delete: if request.auth != null && 
+                               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
