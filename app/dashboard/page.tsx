@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 interface Release {
@@ -24,8 +24,35 @@ export default function Dashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [activeTab, setActiveTab] = useState('release')
   const [selectedSubgenre, setSelectedSubgenre] = useState('')
-  const [coverImage, setCoverImage] = useState('')
-  const [tracks, setTracks] = useState([{ title: '', artist: '', driveLink: '' }])
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState('')
+  const [audioFiles, setAudioFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const [tracks, setTracks] = useState<Array<{
+    title: string
+    artist: string
+    file: File | null
+    audioUrl?: string
+    uploadProgress: number
+    // Metadata lengkap
+    featuring: string
+    composer: string
+    lyricist: string
+    producer: string
+    arranger: string
+    recordingStudio: string
+    mixingEngineer: string
+    masteringEngineer: string
+    leadVocals: string
+    backgroundVocals: string
+    musicians: string
+    isrc: string
+    pLine: string
+    cLine: string
+  }>>([])
+  const [releases, setReleases] = useState<Release[]>([])
+  const [submissions, setSubmissions] = useState<any[]>([])
   const [newRelease, setNewRelease] = useState({
     title: '',
     artist: '',
@@ -39,8 +66,14 @@ export default function Dashboard() {
     territories: 'worldwide',
     promotionText: '',
     spotifyUrl: '',
-    appleMusicUrl: ''
+    appleMusicUrl: '',
+    youtubeChannelUrl: '',
+    claimYoutubeOAC: false
   })
+  const [editingRelease, setEditingRelease] = useState<any>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [releaseToDelete, setReleaseToDelete] = useState<any>(null)
+  const [deleteReason, setDeleteReason] = useState('')
   
   const genres: { [key: string]: string[] } = {
     'Alternative': ['Alternative Rock', 'Indie Rock', 'Grunge', 'Britpop', 'Post-Punk'],
@@ -87,30 +120,194 @@ export default function Dashboard() {
     }
   }
   
-  const addTrack = () => {
-    setTracks([...tracks, { title: '', artist: '', driveLink: '' }])
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      setCoverFile(file)
+      setCoverPreview(URL.createObjectURL(file))
+    } else {
+      alert('Please upload an image file (JPG, PNG)')
+    }
   }
-  
-  const removeTrack = (index: number) => {
-    setTracks(tracks.filter((_, i) => i !== index))
+
+  const handleAudioDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'))
+    if (files.length > 0) {
+      setAudioFiles(prev => [...prev, ...files])
+      // Auto-create tracks from files
+      const currentYear = new Date().getFullYear()
+      const newTracks = files.map(file => ({
+        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        artist: newRelease.artist || '',
+        file,
+        uploadProgress: 0,
+        featuring: '',
+        composer: '',
+        lyricist: '',
+        producer: '',
+        arranger: '',
+        recordingStudio: '',
+        mixingEngineer: '',
+        masteringEngineer: '',
+        leadVocals: '',
+        backgroundVocals: '',
+        musicians: '',
+        isrc: '',
+        pLine: `℗ ${currentYear} Afterglow Music`,
+        cLine: `© ${currentYear} Afterglow Music`
+      }))
+      setTracks(prev => [...prev, ...newTracks])
+    } else {
+      alert('Please upload audio files (MP3, WAV, FLAC)')
+    }
   }
-  
+
+  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('audio/'))
+    if (files.length > 0) {
+      setAudioFiles(prev => [...prev, ...files])
+      // Auto-create tracks from files
+      const currentYear = new Date().getFullYear()
+      const newTracks = files.map(file => ({
+        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        artist: newRelease.artist || '',
+        file,
+        uploadProgress: 0,
+        featuring: '',
+        composer: '',
+        lyricist: '',
+        producer: '',
+        arranger: '',
+        recordingStudio: '',
+        mixingEngineer: '',
+        masteringEngineer: '',
+        leadVocals: '',
+        backgroundVocals: '',
+        musicians: '',
+        isrc: '',
+        pLine: `℗ ${currentYear} Afterglow Music`,
+        cLine: `© ${currentYear} Afterglow Music`
+      }))
+      setTracks(prev => [...prev, ...newTracks])
+    } else {
+      alert('Please upload audio files (MP3, WAV, FLAC)')
+    }
+  }
+
+  const removeAudioFile = (index: number) => {
+    setAudioFiles(prev => prev.filter((_, i) => i !== index))
+    setTracks(prev => prev.filter((_, i) => i !== index))
+  }
+
   const updateTrack = (index: number, field: string, value: string) => {
     const newTracks = [...tracks]
     newTracks[index] = { ...newTracks[index], [field]: value }
     setTracks(newTracks)
   }
 
-  const [releases, setReleases] = useState<Release[]>([])
+  const uploadCoverToStorage = async (): Promise<string> => {
+    if (!coverFile) return ''
+
+    const formData = new FormData()
+    formData.append('file', coverFile)
+    formData.append('type', 'cover')
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Upload failed')
+    }
+
+    return data.url
+  }
+
+  const uploadTrackToStorage = async (index: number, file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'track')
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Upload failed')
+    }
+
+    // Update progress
+    const newTracks = [...tracks]
+    newTracks[index] = { ...newTracks[index], uploadProgress: 100 }
+    setTracks(newTracks)
+
+    return data.url
+  }
+
+  const handleCoverDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      setCoverFile(file)
+      setCoverPreview(URL.createObjectURL(file))
+    } else {
+      alert('Please upload an image file (JPG, PNG)')
+    }
+  }
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn')
     const storedUsername = localStorage.getItem('username')
+    const userId = localStorage.getItem('userId')
     
     if (!isLoggedIn) {
       router.push('/')
     } else {
       setUsername(storedUsername || 'User')
+      
+      // Load user's submissions from Firestore (real-time)
+      if (userId) {
+        console.log('Loading submissions for userId:', userId)
+        
+        const q = query(
+          collection(db, 'submissions'),
+          where('userId', '==', userId)
+        )
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const submissionsData: any[] = []
+          snapshot.forEach((doc) => {
+            const data = doc.data()
+            console.log('Submission found:', doc.id, data)
+            submissionsData.push({
+              id: doc.id,
+              ...data,
+              submittedAt: data.submittedAt?.toDate?.() || new Date()
+            })
+          })
+          
+          // Sort manually by submittedAt (descending)
+          submissionsData.sort((a, b) => {
+            const dateA = a.submittedAt instanceof Date ? a.submittedAt : new Date(a.submittedAt)
+            const dateB = b.submittedAt instanceof Date ? b.submittedAt : new Date(b.submittedAt)
+            return dateB.getTime() - dateA.getTime()
+          })
+          
+          console.log('Total submissions loaded:', submissionsData.length)
+          setSubmissions(submissionsData)
+        }, (error) => {
+          console.error('Error loading submissions:', error)
+        })
+        
+        return () => unsubscribe()
+      }
     }
   }, [router])
 
@@ -122,10 +319,98 @@ export default function Dashboard() {
     router.push('/')
   }
 
+  const handleEditRelease = (submission: any) => {
+    setEditingRelease(submission)
+    setNewRelease({
+      title: submission.title,
+      artist: submission.artist,
+      featuringArtists: submission.featuringArtists || '',
+      label: 'Afterglow Music',
+      releaseDate: submission.releaseDate,
+      upc: submission.upc || '',
+      genre: submission.genre,
+      format: submission.format,
+      price: submission.price || 'standard',
+      territories: submission.territories || 'worldwide',
+      promotionText: submission.promotionText || '',
+      spotifyUrl: submission.spotifyUrl || '',
+      appleMusicUrl: submission.appleMusicUrl || '',
+      youtubeChannelUrl: submission.youtubeChannelUrl || '',
+      claimYoutubeOAC: submission.claimYoutubeOAC || false
+    })
+    setSelectedSubgenre(submission.subgenre || '')
+    setSubgenres(genres[submission.genre] || [])
+    
+    // Convert trackDetails to tracks format
+    const currentYear = new Date().getFullYear()
+    const existingTracks = (submission.trackDetails || []).map((track: any) => ({
+      title: track.title,
+      artist: track.artist || submission.artist,
+      file: null, // No file object for existing tracks
+      audioUrl: track.audioUrl || '',
+      uploadProgress: 100,
+      featuring: track.featuring || '',
+      composer: track.composer || '',
+      lyricist: track.lyricist || '',
+      producer: track.producer || '',
+      arranger: track.arranger || '',
+      recordingStudio: track.recordingStudio || '',
+      mixingEngineer: track.mixingEngineer || '',
+      masteringEngineer: track.masteringEngineer || '',
+      leadVocals: track.leadVocals || '',
+      backgroundVocals: track.backgroundVocals || '',
+      musicians: track.musicians || '',
+      isrc: track.isrc || '',
+      pLine: track.pLine || `℗ ${currentYear} Afterglow Music`,
+      cLine: track.cLine || `© ${currentYear} Afterglow Music`
+    }))
+    
+    setTracks(existingTracks)
+    setCoverPreview(submission.coverImage || '')
+    setShowCreateForm(true)
+    setActiveTab('release')
+  }
+
+  const handleDeleteClick = (submission: any) => {
+    setReleaseToDelete(submission)
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!releaseToDelete) return
+
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'submissions', releaseToDelete.id))
+
+      // Send email notifications
+      await fetch('/api/send-delete-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          releaseTitle: releaseToDelete.title,
+          artist: releaseToDelete.artist,
+          userEmail: releaseToDelete.userEmail,
+          reason: deleteReason
+        }),
+      })
+
+      setShowDeleteConfirm(false)
+      setReleaseToDelete(null)
+      setDeleteReason('')
+      alert('Release deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting release:', error)
+      alert('Error deleting release: ' + (error as Error).message)
+    }
+  }
+
   const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // VALIDATION - Check all required fields
+    // VALIDATION
     if (!newRelease.title.trim()) {
       alert('Release title is required')
       setActiveTab('release')
@@ -168,25 +453,15 @@ export default function Dashboard() {
       return
     }
     
-    if (!coverImage.trim()) {
-      alert('Cover art link is required')
-      setActiveTab('upload')
+    if (!coverFile && !coverPreview) {
+      alert('Cover art is required')
+      setActiveTab('release')
       return
     }
     
-    // Validate cover art is a valid URL
-    try {
-      new URL(coverImage)
-    } catch {
-      alert('Cover art must be a valid URL')
-      setActiveTab('upload')
-      return
-    }
-    
-    // Validate tracks
     if (tracks.length === 0) {
       alert('At least one track is required')
-      setActiveTab('tracks')
+      setActiveTab('upload')
       return
     }
     
@@ -197,18 +472,9 @@ export default function Dashboard() {
         return
       }
       
-      if (!tracks[i].driveLink.trim()) {
-        alert(`Track ${i + 1}: Google Drive link is required`)
-        setActiveTab('tracks')
-        return
-      }
-      
-      // Validate drive link is a valid URL
-      try {
-        new URL(tracks[i].driveLink)
-      } catch {
-        alert(`Track ${i + 1}: Google Drive link must be a valid URL`)
-        setActiveTab('tracks')
+      if (!tracks[i].file && !editingRelease) {
+        alert(`Track ${i + 1}: Audio file is required`)
+        setActiveTab('upload')
         return
       }
     }
@@ -219,7 +485,6 @@ export default function Dashboard() {
       return
     }
     
-    // Get user email from localStorage
     const userEmail = localStorage.getItem('userEmail') || ''
     
     if (!userEmail) {
@@ -227,88 +492,143 @@ export default function Dashboard() {
       router.push('/')
       return
     }
+
+    setIsUploading(true)
     
-    // Send email notification
     try {
-      const response = await fetch('/api/send-release', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newRelease,
-          tracks,
-          coverImage,
-          userEmail
-        }),
-      })
-
-      if (response.ok) {
-        // Save submission to Firestore
-        try {
-          await addDoc(collection(db, 'submissions'), {
-            title: newRelease.title,
-            artist: newRelease.artist,
-            featuringArtists: newRelease.featuringArtists || '',
-            userEmail: userEmail,
-            userId: localStorage.getItem('userId') || '',
-            genre: newRelease.genre,
-            format: newRelease.format,
-            tracks: tracks.length,
-            trackDetails: tracks,
-            coverImage: coverImage,
-            spotifyUrl: newRelease.spotifyUrl,
-            appleMusicUrl: newRelease.appleMusicUrl,
-            price: newRelease.price,
-            territories: newRelease.territories,
-            promotionText: newRelease.promotionText,
-            status: 'pending',
-            submittedAt: serverTimestamp(),
-            releaseDate: newRelease.releaseDate
-          })
-        } catch (error) {
-          console.error('Error saving to Firestore:', error)
-        }
-
-        const release: Release = {
-          id: releases.length + 1,
-          title: newRelease.title,
-          artist: newRelease.artist,
-          label: newRelease.label,
-          releaseDate: newRelease.releaseDate,
-          tracks: 1,
-          upc: newRelease.upc,
-          territories: 240,
-          stores: 17,
-          cover: '🎵'
-        }
-        setReleases([release, ...releases])
-        setShowCreateForm(false)
-        setNewRelease({
-          title: '',
-          artist: '',
-          featuringArtists: '',
-          label: 'Afterglow Music',
-          releaseDate: '',
-          upc: '',
-          genre: '',
-          format: '',
-          price: 'standard',
-          territories: 'worldwide',
-          promotionText: '',
-          spotifyUrl: '',
-          appleMusicUrl: ''
-        })
-        setSelectedSubgenre('')
-        setTracks([{ title: '', artist: '', driveLink: '' }])
-        setCoverImage('')
-        alert('Release created and email sent successfully!')
-      } else {
-        alert('Release created but failed to send email notification')
+      // Upload cover art (only if new file selected)
+      let coverUrl = coverPreview
+      if (coverFile) {
+        coverUrl = await uploadCoverToStorage()
       }
+
+      // Upload tracks (only new ones)
+      const uploadedTracks = await Promise.all(
+        tracks.map(async (track, index) => {
+          let audioUrl = track.audioUrl || ''
+          if (track.file) {
+            audioUrl = await uploadTrackToStorage(index, track.file)
+          }
+          return {
+            title: track.title,
+            artist: track.artist || newRelease.artist,
+            audioUrl
+          }
+        })
+      )
+
+      const releaseData = {
+        title: newRelease.title,
+        artist: newRelease.artist,
+        featuringArtists: newRelease.featuringArtists || '',
+        userEmail: userEmail,
+        userId: localStorage.getItem('userId') || '',
+        genre: newRelease.genre,
+        subgenre: selectedSubgenre,
+        format: newRelease.format,
+        tracks: uploadedTracks.length,
+        trackDetails: uploadedTracks,
+        coverImage: coverUrl,
+        spotifyUrl: newRelease.spotifyUrl,
+        appleMusicUrl: newRelease.appleMusicUrl,
+        youtubeChannelUrl: newRelease.youtubeChannelUrl || '',
+        claimYoutubeOAC: newRelease.claimYoutubeOAC,
+        price: newRelease.price,
+        territories: newRelease.territories,
+        promotionText: newRelease.promotionText,
+        releaseDate: newRelease.releaseDate
+      }
+
+      if (editingRelease) {
+        // UPDATE existing release
+        await updateDoc(doc(db, 'submissions', editingRelease.id), {
+          ...releaseData,
+          updatedAt: serverTimestamp()
+        })
+
+        // Track changes for email
+        const changes: string[] = []
+        if (editingRelease.title !== newRelease.title) changes.push(`Title changed to "${newRelease.title}"`)
+        if (editingRelease.artist !== newRelease.artist) changes.push(`Artist changed to "${newRelease.artist}"`)
+        if (editingRelease.genre !== newRelease.genre) changes.push(`Genre changed to "${newRelease.genre}"`)
+        if (editingRelease.format !== newRelease.format) changes.push(`Format changed to "${newRelease.format}"`)
+        if (editingRelease.releaseDate !== newRelease.releaseDate) changes.push(`Release date changed`)
+        if (coverFile) changes.push('Cover art updated')
+        if (tracks.some(t => t.file)) changes.push('Audio files updated')
+
+        // Send email notifications
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@afterglowmusic.com'
+        await fetch('/api/send-edit-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            releaseTitle: newRelease.title,
+            artist: newRelease.artist,
+            userEmail: userEmail,
+            changes: changes
+          }),
+        })
+
+        alert('Release updated successfully!')
+      } else {
+        // CREATE new release
+        await addDoc(collection(db, 'submissions'), {
+          ...releaseData,
+          status: 'pending',
+          submittedAt: serverTimestamp()
+        })
+
+        // Send email notification
+        await fetch('/api/send-release', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...newRelease,
+            tracks: uploadedTracks,
+            coverImage: coverUrl,
+            userEmail
+          }),
+        })
+
+        alert('Release submitted successfully!')
+      }
+
+      // Reset form
+      setShowCreateForm(false)
+      setEditingRelease(null)
+      setNewRelease({
+        title: '',
+        artist: '',
+        featuringArtists: '',
+        label: 'Afterglow Music',
+        releaseDate: '',
+        upc: '',
+        genre: '',
+        format: '',
+        price: 'standard',
+        territories: 'worldwide',
+        promotionText: '',
+        spotifyUrl: '',
+        appleMusicUrl: '',
+        youtubeChannelUrl: '',
+        claimYoutubeOAC: false
+      })
+      setSelectedSubgenre('')
+      setTracks([])
+      setAudioFiles([])
+      setCoverFile(null)
+      setCoverPreview('')
+      setUploadProgress(0)
+      setActiveTab('release')
     } catch (error) {
       console.error('Error:', error)
-      alert('Error creating release')
+      alert('Error submitting release: ' + (error as Error).message)
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -363,11 +683,11 @@ export default function Dashboard() {
         <div className="stats">
           <div className="stat-card">
             <h3>Total Releases</h3>
-            <div className="value">{releases.length}</div>
+            <div className="value">{submissions.length}</div>
           </div>
           <div className="stat-card">
             <h3>Total Tracks</h3>
-            <div className="value">{releases.reduce((sum, r) => sum + r.tracks, 0)}</div>
+            <div className="value">{submissions.reduce((sum, s) => sum + (s.tracks || 0), 0)}</div>
           </div>
           <div className="stat-card">
             <h3>Territories</h3>
@@ -375,7 +695,7 @@ export default function Dashboard() {
           </div>
           <div className="stat-card">
             <h3>Stores</h3>
-            <div className="value">17</div>
+            <div className="value">120</div>
           </div>
         </div>
 
@@ -397,8 +717,11 @@ export default function Dashboard() {
           <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>One release: Audio Release, EP or Single</h2>
-                <button className="btn-close" onClick={() => setShowCreateForm(false)}>
+                <h2>{editingRelease ? 'Edit Release' : 'One release: Audio Release, EP or Single'}</h2>
+                <button className="btn-close" onClick={() => {
+                  setShowCreateForm(false)
+                  setEditingRelease(null)
+                }}>
                   ×
                 </button>
               </div>
@@ -469,6 +792,58 @@ export default function Dashboard() {
                         </small>
                       </div>
                     </div>
+                    
+                    <div style={{ margin: '30px 0' }}>
+                      <h3 style={{ marginBottom: '15px' }}>Cover Art *</h3>
+                      <div 
+                        className="dropzone"
+                        onDrop={handleCoverDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                        style={{
+                          border: '2px dashed #cbd5e0',
+                          borderRadius: '8px',
+                          padding: '40px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          background: coverPreview ? '#f7fafc' : '#fff'
+                        }}
+                        onClick={() => document.getElementById('cover-input')?.click()}
+                      >
+                        {coverPreview ? (
+                          <div>
+                            <img 
+                              src={coverPreview} 
+                              alt="Cover preview" 
+                              style={{ 
+                                maxWidth: '200px', 
+                                maxHeight: '200px', 
+                                borderRadius: '4px',
+                                marginBottom: '15px'
+                              }} 
+                            />
+                            <p style={{ color: '#27ae60', fontWeight: 600, marginBottom: '5px' }}>✓ Cover art uploaded</p>
+                            <p style={{ fontSize: '13px', color: '#718096' }}>Click or drag to replace</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 15px' }}>
+                              <path d="M7 18C5.17107 18.4117 4 19.0443 4 19.7537C4 20.9943 7.58172 22 12 22C16.4183 22 20 20.9943 20 19.7537C20 19.0443 18.8289 18.4117 17 18M12 15V3M12 3L8 7M12 3L16 7" stroke="#718096" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <p style={{ fontWeight: 600, marginBottom: '8px' }}>Drag & drop cover art here</p>
+                            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '15px' }}>or click to browse</p>
+                            <p style={{ fontSize: '12px', color: '#a0aec0' }}>JPG or PNG • Min 3000x3000px • Max 10MB</p>
+                          </div>
+                        )}
+                        <input
+                          id="cover-input"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverSelect}
+                          style={{ display: 'none' }}
+                        />
+                      </div>
+                    </div>
+                    
                     <div className="form-row">
                       <div className="form-col">
                         <label>Production Year *</label>
@@ -508,6 +883,47 @@ export default function Dashboard() {
                         <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
                           Enter your Apple Music artist URL or type "I don't have artist profile yet"
                         </small>
+                      </div>
+                    </div>
+                    
+                    <div style={{ margin: '30px 0', padding: '25px', background: '#f7fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 600, color: '#1a202c' }}>
+                        YouTube Official Artist Channel
+                      </h3>
+                      
+                      <div className="form-row">
+                        <div className="form-col">
+                          <label>YouTube Channel URL</label>
+                          <input
+                            type="text"
+                            placeholder="https://www.youtube.com/@yourartist or type: I don't have channel yet"
+                            value={newRelease.youtubeChannelUrl}
+                            onChange={(e) => setNewRelease({...newRelease, youtubeChannelUrl: e.target.value})}
+                          />
+                          <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                            Enter your YouTube channel URL or type "I don't have channel yet"
+                          </small>
+                        </div>
+                      </div>
+                      
+                      <div style={{ marginTop: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={newRelease.claimYoutubeOAC}
+                            onChange={(e) => setNewRelease({...newRelease, claimYoutubeOAC: e.target.checked})}
+                            style={{ marginTop: '3px', width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <div>
+                            <span style={{ fontWeight: 600, color: '#2d3748' }}>
+                              Claim YouTube Official Artist Channel (OAC)
+                            </span>
+                            <p style={{ fontSize: '13px', color: '#718096', marginTop: '6px', lineHeight: '1.5' }}>
+                              We will help you claim your Official Artist Channel on YouTube. This gives you access to YouTube Music analytics, 
+                              artist profile customization, and the official artist badge. Required: You must have an existing YouTube channel.
+                            </p>
+                          </div>
+                        </label>
                       </div>
                     </div>
                     <div className="form-row">
@@ -603,27 +1019,91 @@ export default function Dashboard() {
 
                 {activeTab === 'upload' && (
                   <div className="upload-section">
-                    <h3>Cover Art</h3>
-                    <div className="form-row">
-                      <div className="form-col">
-                        <label>Google Drive Cover Art Link *</label>
-                        <input
-                          type="url"
-                          placeholder="https://drive.google.com/file/d/..."
-                          value={coverImage}
-                          onChange={(e) => setCoverImage(e.target.value)}
-                          required
-                        />
-                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
-                          Upload your cover art to Google Drive and paste the shareable link here (min 3000x3000px)
-                        </small>
-                      </div>
+                    <h3>Upload Audio Files</h3>
+                    <p style={{ color: '#718096', marginBottom: '20px' }}>Upload all your audio files at once. They will automatically be added to the track list.</p>
+                    
+                    <div 
+                      className="dropzone"
+                      onDrop={handleAudioDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      style={{
+                        border: '2px dashed #cbd5e0',
+                        borderRadius: '8px',
+                        padding: '60px 40px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        background: audioFiles.length > 0 ? '#f0f9ff' : '#fff'
+                      }}
+                      onClick={() => document.getElementById('audio-input')?.click()}
+                    >
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 20px' }}>
+                        <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <p style={{ fontSize: '18px', fontWeight: 600, marginBottom: '10px' }}>
+                        {audioFiles.length > 0 ? `${audioFiles.length} file(s) uploaded` : 'Drag & drop audio files here'}
+                      </p>
+                      <p style={{ fontSize: '14px', color: '#718096', marginBottom: '15px' }}>
+                        or click to browse
+                      </p>
+                      <p style={{ fontSize: '13px', color: '#a0aec0' }}>
+                        MP3, WAV, FLAC • Max 200MB per file • Multiple files supported
+                      </p>
+                      <input
+                        id="audio-input"
+                        type="file"
+                        accept="audio/*"
+                        multiple
+                        onChange={handleAudioSelect}
+                        style={{ display: 'none' }}
+                      />
                     </div>
-                    {coverImage && (
-                      <div style={{ marginTop: '20px', padding: '15px', background: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
-                        <p style={{ fontSize: '13px', color: '#1e40af', margin: 0 }}>
-                          ✓ Cover art link added
-                        </p>
+                    
+                    {audioFiles.length > 0 && (
+                      <div style={{ marginTop: '30px' }}>
+                        <h4 style={{ marginBottom: '15px' }}>Uploaded Files ({audioFiles.length})</h4>
+                        {audioFiles.map((file, index) => (
+                          <div 
+                            key={index}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '15px',
+                              background: '#f7fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '6px',
+                              marginBottom: '10px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              <div style={{ flex: 1 }}>
+                                <p style={{ fontWeight: 600, marginBottom: '3px' }}>{file.name}</p>
+                                <p style={{ fontSize: '12px', color: '#718096' }}>
+                                  {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAudioFile(index)}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                background: '#e74c3c',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                cursor: 'pointer',
+                                fontSize: '18px'
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -631,43 +1111,381 @@ export default function Dashboard() {
 
                 {activeTab === 'tracks' && (
                   <div className="tracks-section">
-                    <h3>Track List</h3>
-                    {tracks.map((track, index) => (
-                      <div key={index} className="track-item">
-                        <div className="track-number">{index + 1}</div>
-                        <div className="track-fields">
-                          <input
-                            type="text"
-                            placeholder="Track title *"
-                            value={track.title}
-                            onChange={(e) => updateTrack(index, 'title', e.target.value)}
-                            required
-                          />
-                          <input
-                            type="text"
-                            placeholder="Artist"
-                            value={track.artist}
-                            onChange={(e) => updateTrack(index, 'artist', e.target.value)}
-                          />
-                          <input
-                            type="url"
-                            placeholder="Google Drive Link *"
-                            value={track.driveLink}
-                            onChange={(e) => updateTrack(index, 'driveLink', e.target.value)}
-                            required
-                            style={{ gridColumn: '1 / -1' }}
-                          />
-                        </div>
-                        {tracks.length > 1 && (
-                          <button type="button" className="btn-remove" onClick={() => removeTrack(index)}>
-                            ×
-                          </button>
-                        )}
+                    <h3>Track Details & Metadata</h3>
+                    <p style={{ color: '#718096', marginBottom: '20px' }}>
+                      {tracks.length > 0 ? 'Complete track information and credits below' : 'Please upload audio files first'}
+                    </p>
+                    
+                    {tracks.length === 0 ? (
+                      <div style={{ 
+                        padding: '60px 20px', 
+                        textAlign: 'center', 
+                        background: '#f7fafc', 
+                        borderRadius: '8px',
+                        border: '2px dashed #cbd5e0'
+                      }}>
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 20px', opacity: 0.3 }}>
+                          <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#718096" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <p style={{ fontSize: '16px', color: '#718096' }}>No audio files uploaded yet</p>
+                        <p style={{ fontSize: '14px', color: '#a0aec0', marginTop: '8px' }}>Go back to Upload tab to add audio files</p>
                       </div>
-                    ))}
-                    <button type="button" className="btn-add-track" onClick={addTrack}>
-                      + Add Track
-                    </button>
+                    ) : (
+                      tracks.map((track, index) => (
+                        <div key={index} style={{ 
+                          marginBottom: '30px', 
+                          padding: '25px', 
+                          border: '1px solid #e2e8f0', 
+                          borderRadius: '8px',
+                          background: '#fff'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                            <div style={{ 
+                              minWidth: '40px', 
+                              height: '40px', 
+                              background: '#3498db', 
+                              color: 'white', 
+                              borderRadius: '50%', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontWeight: 600,
+                              fontSize: '16px'
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div style={{ 
+                              flex: 1,
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '10px',
+                              padding: '10px',
+                              background: '#f7fafc',
+                              borderRadius: '4px'
+                            }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              <span style={{ fontSize: '13px', color: '#718096' }}>
+                                {track.file ? `${track.file.name} (${(track.file.size / (1024 * 1024)).toFixed(2)} MB)` : 'Audio file uploaded'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Basic Information</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Track Title *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Enter track title"
+                                value={track.title}
+                                onChange={(e) => updateTrack(index, 'title', e.target.value)}
+                                required
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Primary Artist
+                              </label>
+                              <input
+                                type="text"
+                                placeholder={`Default: ${newRelease.artist || 'Primary artist'}`}
+                                value={track.artist}
+                                onChange={(e) => updateTrack(index, 'artist', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Featuring Artists
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g., Artist 2, Artist 3"
+                                value={track.featuring}
+                                onChange={(e) => updateTrack(index, 'featuring', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                ISRC Code
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g., USRC17607839"
+                                value={track.isrc}
+                                onChange={(e) => updateTrack(index, 'isrc', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Songwriting & Composition</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Composer/Songwriter
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who wrote the music?"
+                                value={track.composer}
+                                onChange={(e) => updateTrack(index, 'composer', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Lyricist
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who wrote the lyrics?"
+                                value={track.lyricist}
+                                onChange={(e) => updateTrack(index, 'lyricist', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Arranger
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who arranged the track?"
+                                value={track.arranger}
+                                onChange={(e) => updateTrack(index, 'arranger', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Production & Engineering</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Producer
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who produced this track?"
+                                value={track.producer}
+                                onChange={(e) => updateTrack(index, 'producer', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Recording Studio
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Where was it recorded?"
+                                value={track.recordingStudio}
+                                onChange={(e) => updateTrack(index, 'recordingStudio', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Mixing Engineer
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who mixed the track?"
+                                value={track.mixingEngineer}
+                                onChange={(e) => updateTrack(index, 'mixingEngineer', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Mastering Engineer
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Who mastered the track?"
+                                value={track.masteringEngineer}
+                                onChange={(e) => updateTrack(index, 'masteringEngineer', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Performers & Musicians</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Lead Vocals
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Lead vocalist(s)"
+                                value={track.leadVocals}
+                                onChange={(e) => updateTrack(index, 'leadVocals', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Background Vocals
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Background vocalist(s)"
+                                value={track.backgroundVocals}
+                                onChange={(e) => updateTrack(index, 'backgroundVocals', e.target.value)}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px'
+                                }}
+                              />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                Musicians & Instruments
+                              </label>
+                              <textarea
+                                placeholder="e.g., John Doe - Guitar, Jane Smith - Piano, etc."
+                                value={track.musicians}
+                                onChange={(e) => updateTrack(index, 'musicians', e.target.value)}
+                                rows={2}
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  resize: 'vertical'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Copyright Information</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                ℗ Line (Sound Recording)
+                              </label>
+                              <input
+                                type="text"
+                                value={track.pLine}
+                                disabled
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  background: '#f7fafc',
+                                  color: '#718096'
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                                © Line (Composition)
+                              </label>
+                              <input
+                                type="text"
+                                value={track.cLine}
+                                disabled
+                                style={{ 
+                                  width: '100%', 
+                                  padding: '8px 12px', 
+                                  border: '1px solid #cbd5e0', 
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  background: '#f7fafc',
+                                  color: '#718096'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
 
@@ -725,7 +1543,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <p style={{ color: '#718096', fontSize: '14px', marginTop: '10px' }}>
-                      Your release will be distributed to all major platforms including Spotify, Apple Music, Amazon Music, YouTube Music, and 17+ stores.
+                      Your release will be distributed to 120+ platforms including Spotify, Apple Music, Amazon Music, YouTube Music, and many more worldwide.
                     </p>
                   </div>
                 )}
@@ -786,17 +1604,17 @@ export default function Dashboard() {
 
                 <div className="form-actions">
                   {activeTab !== 'release' && (
-                    <button type="button" className="btn-secondary" onClick={goToPreviousTab}>
+                    <button type="button" className="btn-secondary" onClick={goToPreviousTab} disabled={isUploading}>
                       ← Previous
                     </button>
                   )}
                   {activeTab !== 'submission' ? (
-                    <button type="button" className="btn-primary" onClick={goToNextTab}>
+                    <button type="button" className="btn-primary" onClick={goToNextTab} disabled={isUploading}>
                       Next →
                     </button>
                   ) : (
-                    <button type="submit" className="btn-save">
-                      Save & Submit
+                    <button type="submit" className="btn-save" disabled={isUploading}>
+                      {isUploading ? 'Uploading...' : editingRelease ? 'Update Release' : 'Save & Submit'}
                     </button>
                   )}
                 </div>
@@ -806,50 +1624,257 @@ export default function Dashboard() {
         )}
 
         <div className="releases-table">
-          <div className="table-header">
-            <div></div>
-            <div>Status</div>
-            <div>Title / Artist</div>
-            <div>Label</div>
-            <div>Release Date</div>
-            <div>Tracks</div>
-            <div>UPC</div>
-            <div>Action</div>
-          </div>
-          {releases.map((release) => (
-            <div key={release.id} className="table-row">
-              <div className="album-cover">
-                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="50" height="50" rx="4" fill="#E2E8F0"/>
-                  <path d="M35 15v20l-10-5-10 5V15h20z" fill="#718096"/>
-                  <circle cx="25" cy="25" r="3" fill="#CBD5E0"/>
-                </svg>
-              </div>
-              <div>
-                <span className="status-badge status-active">✓</span>
-              </div>
-              <div>
-                <div style={{ fontWeight: 600 }}>{release.title}</div>
-                <div style={{ fontSize: '13px', color: '#718096' }}>
-                  By {release.artist}
-                </div>
-              </div>
-              <div>{release.label}</div>
-              <div>{release.releaseDate}</div>
-              <div>{release.tracks} Track</div>
-              <div>
-                <div style={{ fontSize: '13px' }}>UPC: {release.upc}</div>
-                <div style={{ fontSize: '12px', color: '#718096' }}>
-                  {release.territories} terr. / {release.stores} stores
-                </div>
-              </div>
-              <div>
-                <button className="btn-promote">Promote</button>
-              </div>
+          {submissions.length === 0 ? (
+            <div className="empty-state">
+              <svg className="empty-state-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+              </svg>
+              <h3>No Releases Yet</h3>
+              <p>Click "One release" to submit your first release</p>
             </div>
-          ))}
+          ) : (
+            submissions.map((submission) => (
+              <div 
+                key={submission.id} 
+                className="release-card"
+              >
+                <div 
+                  className="release-card-cover"
+                  onClick={() => router.push(`/release/${submission.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {submission.coverImage ? (
+                    <img 
+                      src={submission.coverImage} 
+                      alt={submission.title}
+                    />
+                  ) : (
+                    <div style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      background: '#e2e8f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '64px'
+                    }}>
+                      🎵
+                    </div>
+                  )}
+                  <div 
+                    className="release-card-status"
+                    style={{
+                      background: submission.status === 'approved' ? 'rgba(39, 174, 96, 0.95)' : 
+                                 submission.status === 'rejected' ? 'rgba(231, 76, 60, 0.95)' : 
+                                 'rgba(255, 165, 0, 0.95)',
+                      color: 'white'
+                    }}
+                  >
+                    {submission.status === 'approved' ? '✓ Approved' : 
+                     submission.status === 'rejected' ? '✗ Rejected' : 
+                     '⏱ Pending'}
+                  </div>
+                </div>
+                <div className="release-card-content">
+                  <div 
+                    className="release-card-title"
+                    onClick={() => router.push(`/release/${submission.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {submission.title}
+                  </div>
+                  <div className="release-card-artist">By {submission.artist}</div>
+                  <div className="release-card-meta">
+                    <div className="release-card-meta-item">
+                      <div className="release-card-meta-label">Format</div>
+                      <div className="release-card-meta-value" style={{ textTransform: 'capitalize' }}>
+                        {submission.format}
+                      </div>
+                    </div>
+                    <div className="release-card-meta-item">
+                      <div className="release-card-meta-label">Tracks</div>
+                      <div className="release-card-meta-value">
+                        {submission.tracks}
+                      </div>
+                    </div>
+                    <div className="release-card-meta-item">
+                      <div className="release-card-meta-label">Genre</div>
+                      <div className="release-card-meta-value">
+                        {submission.genre}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '8px', 
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '1px solid #e2e8f0'
+                  }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEditRelease(submission)
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        background: '#3182ce',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#2c5aa0'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#3182ce'}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteClick(submission)
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        background: '#e53e3e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#c53030'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#e53e3e'}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '500px' }}
+          >
+            <div className="modal-header">
+              <h2>Delete Release</h2>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>
+                ×
+              </button>
+            </div>
+            <div style={{ padding: '30px' }}>
+              <div style={{ 
+                background: '#fff5f5', 
+                padding: '20px', 
+                borderRadius: '8px', 
+                marginBottom: '20px',
+                border: '1px solid #feb2b2'
+              }}>
+                <p style={{ fontWeight: 600, marginBottom: '8px', color: '#e53e3e' }}>
+                  Are you sure you want to delete this release?
+                </p>
+                <p style={{ fontSize: '14px', color: '#718096' }}>
+                  <strong>{releaseToDelete?.title}</strong> by {releaseToDelete?.artist}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                  Reason for deletion (optional):
+                </label>
+                <textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="e.g., Wrong files uploaded, Need to make changes, etc."
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #cbd5e0',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px' }}>
+                This action cannot be undone. Both you and the admin will receive an email notification.
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: 'white',
+                    color: '#2d3748',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: '#e53e3e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Delete Release
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

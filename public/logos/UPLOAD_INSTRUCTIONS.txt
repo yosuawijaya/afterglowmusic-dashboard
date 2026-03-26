@@ -1,0 +1,38 @@
+INSTRUKSI UPLOAD LOGO PLATFORM STREAMING
+=========================================
+
+Format Logo:
+- File: PNG dengan background transparan
+- Ukuran: 200x200px atau 400x400px (square/persegi)
+- Nama file: lowercase, sesuai dengan nama di list (lihat README.md)
+
+Contoh:
+- spotify.png
+- apple-music.png
+- youtube-music.png
+- amazon-music.png
+- deezer.png
+- tidal.png
+- dll.
+
+Total Platform: 120 stores
+
+Cara Upload:
+1. Download logo resmi dari website platform
+2. Resize ke 200x200px atau 400x400px
+3. Pastikan background transparan (PNG)
+4. Rename sesuai nama file yang benar
+5. Upload ke folder ini (public/logos/)
+
+Logo akan otomatis muncul di halaman release detail.
+Jika logo tidak ditemukan, sistem akan menampilkan emoji sebagai fallback.
+
+Sumber Logo:
+- Website resmi platform
+- Brand guidelines platform
+- Press kit platform
+
+PENTING:
+- Jangan gunakan logo yang dilindungi copyright tanpa izin
+- Gunakan logo resmi dari brand guidelines
+- Pastikan kualitas logo bagus (tidak blur)
