@@ -106,24 +106,8 @@ export default function AdminPage() {
   }
 
   const handleReject = (submissionId: string) => {
-    setRejectConfirm({ id: submissionId })
-    setRejectReason('')
-  }
-
-  const handleRejectConfirm = async () => {
-    if (!rejectConfirm || !rejectReason.trim()) return
-    const submission = submissions.find(s => s.id === rejectConfirm.id)
-    if (!submission) return
-    try {
-      await updateDoc(doc(db, 'submissions', rejectConfirm.id), { status: 'rejected', rejectionReason: rejectReason })
-      await fetch('/api/send-rejection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail: submission.userEmail, title: submission.title, artist: submission.artist, reason: rejectReason })
-      })
-      setRejectConfirm(null)
-      setRejectReason('')
-    } catch (error) { console.error('Error:', error) }
+    const submission = submissions.find(s => s.id === submissionId)
+    if (submission) openEdit(submission)
   }
 
   const handleDeleteUser = (userId: string, userEmail: string) => {
