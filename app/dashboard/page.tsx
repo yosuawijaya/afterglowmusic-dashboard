@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import AvatarUpload from '@/app/components/AvatarUpload'
 
 interface Release {
   id: number
@@ -21,6 +22,8 @@ interface Release {
 export default function Dashboard() {
   const router = useRouter()
   const [username, setUsername] = useState('')
+  const [userId, setUserId] = useState('')
+  const [photoURL, setPhotoURL] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [activeTab, setActiveTab] = useState('release')
   const [selectedSubgenre, setSelectedSubgenre] = useState('')
@@ -272,6 +275,16 @@ export default function Dashboard() {
     } else {
       setUsername(storedUsername || 'User')
       
+      // Load photoURL realtime dari Firestore
+      const uid = localStorage.getItem('userId') || ''
+      setUserId(uid)
+      let unsubPhoto: (() => void) | null = null
+      if (uid) {
+        unsubPhoto = onSnapshot(doc(db, 'users', uid), (snap) => {
+          if (snap.exists()) setPhotoURL(snap.data().photoURL || '')
+        })
+      }
+      
       // Load user's submissions from Firestore (real-time)
       if (userId) {
         console.log('Loading submissions for userId:', userId)
@@ -306,7 +319,7 @@ export default function Dashboard() {
           console.error('Error loading submissions:', error)
         })
         
-        return () => unsubscribe()
+        return () => { unsubscribe(); unsubPhoto?.() }
       }
     }
   }, [router])
@@ -693,7 +706,7 @@ export default function Dashboard() {
             <p>Manage and track your music catalog</p>
           </div>
           <div className="user-info">
-            <div className="user-avatar">{username.charAt(0).toUpperCase()}</div>
+            <AvatarUpload userId={userId} username={username} photoURL={photoURL} size={34} onUpdate={setPhotoURL} />
             <span>{username}</span>
             <button className="btn-logout" onClick={handleLogout}>Logout</button>
           </div>
