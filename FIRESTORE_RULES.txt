@@ -61,3 +61,10 @@ service cloud.firestore {
     }
   }
 }
+
+// ── TAMBAHKAN INI ke dalam rules (sebelum closing brace terakhir) ──
+// Presaves collection — public, fans tidak perlu login
+// match /presaves/{presaveId} {
+//   allow read: if request.auth != null;
+//   allow create: if true;
+// }

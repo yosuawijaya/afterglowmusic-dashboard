@@ -6,144 +6,52 @@ import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 const STORES = [
-  // Major Streaming Platforms (12)
-  { name: 'Spotify', logo: 'spotify.png', icon: '🎵', color: '#1DB954', url: 'https://open.spotify.com' },
-  { name: 'Apple Music', logo: 'apple-music.png', icon: '🍎', color: '#FA243C', url: 'https://music.apple.com' },
-  { name: 'YouTube Music', logo: 'youtube-music.png', icon: '▶️', color: '#FF0000', url: 'https://music.youtube.com' },
-  { name: 'Amazon Music', logo: 'amazon-music.png', icon: '🛒', color: '#FF9900', url: 'https://music.amazon.com' },
-  { name: 'Deezer', logo: 'deezer.png', icon: '🎧', color: '#FF0092', url: 'https://www.deezer.com' },
-  { name: 'Tidal', logo: 'tidal.png', icon: '🌊', color: '#000000', url: 'https://tidal.com' },
-  { name: 'Pandora', logo: 'pandora.png', icon: '📻', color: '#3668FF', url: 'https://www.pandora.com' },
-  { name: 'SoundCloud', logo: 'soundcloud.png', icon: '☁️', color: '#FF5500', url: 'https://soundcloud.com' },
-  { name: 'iHeartRadio', logo: 'iheartradio.png', icon: '❤️', color: '#C6002B', url: 'https://www.iheart.com' },
-  { name: 'Shazam', logo: 'shazam.png', icon: '🔵', color: '#0088FF', url: 'https://www.shazam.com' },
-  { name: 'Napster', logo: 'napster.png', icon: '🎼', color: '#000000', url: 'https://www.napster.com' },
-  { name: 'Qobuz', logo: 'qobuz.png', icon: '🎹', color: '#000000', url: 'https://www.qobuz.com' },
-  
-  // Social Media Platforms (5)
-  { name: 'Instagram', logo: 'instagram.png', icon: '📷', color: '#E4405F', url: 'https://www.instagram.com' },
-  { name: 'TikTok', logo: 'tiktok.png', icon: '🎵', color: '#000000', url: 'https://www.tiktok.com' },
-  { name: 'Facebook', logo: 'facebook.png', icon: '👥', color: '#1877F2', url: 'https://www.facebook.com' },
-  { name: 'Snapchat', logo: 'snapchat.png', icon: '👻', color: '#FFFC00', url: 'https://www.snapchat.com' },
-  { name: 'Triller', logo: 'triller.png', icon: '🎬', color: '#FF0050', url: 'https://triller.co' },
-  
-  // Asian Platforms (20)
-  { name: 'Anghami', logo: 'anghami.png', icon: '🎵', color: '#A20074', url: 'https://www.anghami.com' },
-  { name: 'Boomplay', logo: 'boomplay.png', icon: '🎵', color: '#FF6B00', url: 'https://www.boomplay.com' },
-  { name: 'JOOX', logo: 'joox.png', icon: '🎵', color: '#00D9FF', url: 'https://www.joox.com' },
-  { name: 'KKBOX', logo: 'kkbox.png', icon: '🎵', color: '#0E88EB', url: 'https://www.kkbox.com' },
-  { name: 'NetEase Cloud Music', logo: 'netease.png', icon: '🎵', color: '#E60012', url: 'https://music.163.com' },
-  { name: 'QQ Music', logo: 'qq-music.png', icon: '🎵', color: '#31C27C', url: 'https://y.qq.com' },
-  { name: 'JioSaavn', logo: 'saavn.png', icon: '🎵', color: '#2BC5B4', url: 'https://www.jiosaavn.com' },
-  { name: 'Gaana', logo: 'gaana.png', icon: '🎵', color: '#E8352D', url: 'https://gaana.com' },
-  { name: 'Wynk Music', logo: 'wynk.png', icon: '🎵', color: '#FF0055', url: 'https://wynk.in' },
-  { name: 'Hungama', logo: 'hungama.png', icon: '🎵', color: '#D91E36', url: 'https://www.hungama.com' },
-  { name: 'Resso', logo: 'resso.png', icon: '🎵', color: '#FF2E4C', url: 'https://www.resso.com' },
-  { name: 'Langit Musik', logo: 'langit-musik.png', icon: '🎵', color: '#FF6B00', url: 'https://www.langitmusik.co.id' },
-  { name: 'Melon', logo: 'melon.png', icon: '🎵', color: '#00CD3C', url: 'https://www.melon.com' },
-  { name: 'Bugs', logo: 'bugs.png', icon: '🎵', color: '#FF0000', url: 'https://music.bugs.co.kr' },
-  { name: 'Genie', logo: 'genie.png', icon: '🎵', color: '#00A0E9', url: 'https://www.genie.co.kr' },
-  { name: 'FLO', logo: 'flo.png', icon: '🎵', color: '#FF3D00', url: 'https://www.music-flo.com' },
-  { name: 'Vibe', logo: 'vibe.png', icon: '🎵', color: '#FF0558', url: 'https://vibe.naver.com' },
-  { name: 'AWA', logo: 'awa.png', icon: '🎵', color: '#FF2D55', url: 'https://awa.fm' },
-  { name: 'LINE MUSIC', logo: 'line-music.png', icon: '🎵', color: '#00B900', url: 'https://music.line.me' },
-  { name: 'Yandex Music', logo: 'yandex-music.png', icon: '🎵', color: '#FFCC00', url: 'https://music.yandex.com' },
-  
-  // Regional & Specialized (20)
-  { name: 'Audiomack', logo: 'audiomack.png', icon: '🎵', color: '#FFA200', url: 'https://audiomack.com' },
-  { name: 'Bandcamp', logo: 'bandcamp.png', icon: '🎵', color: '#1DA0C3', url: 'https://bandcamp.com' },
-  { name: 'Beatport', logo: 'beatport.png', icon: '🎵', color: '#94D500', url: 'https://www.beatport.com' },
-  { name: 'Traxsource', logo: 'traxsource.png', icon: '🎵', color: '#FF6600', url: 'https://www.traxsource.com' },
-  { name: '7digital', logo: '7digital.png', icon: '🎵', color: '#FF6600', url: 'https://www.7digital.com' },
-  { name: 'Claro Música', logo: 'claro-musica.png', icon: '🎵', color: '#E60000', url: 'https://www.claromusica.com' },
-  { name: 'MediaNet', logo: 'medianet.png', icon: '🎵', color: '#0066CC', url: 'https://www.mndigital.com' },
-  { name: 'Nuuday', logo: 'nuuday.png', icon: '🎵', color: '#FF6B00', url: 'https://www.nuuday.dk' },
-  { name: 'Gracenote', logo: 'gracenote.png', icon: '🎵', color: '#0066CC', url: 'https://www.gracenote.com' },
-  { name: 'Soundtrack Your Brand', logo: 'soundtrack.png', icon: '🎵', color: '#000000', url: 'https://www.soundtrackyourbrand.com' },
-  { name: 'TouchTunes', logo: 'touchtunes.png', icon: '🎵', color: '#FF6B00', url: 'https://www.touchtunes.com' },
-  { name: 'Juke', logo: 'juke.png', icon: '🎵', color: '#FF0055', url: 'https://juke.com' },
-  { name: 'Slacker Radio', logo: 'slacker.png', icon: '🎵', color: '#FF6600', url: 'https://www.livexlive.com' },
-  { name: 'Spinlet', logo: 'spinlet.png', icon: '🎵', color: '#FF0000', url: 'https://spinlet.com' },
-  { name: 'Simfy Africa', logo: 'simfy.png', icon: '🎵', color: '#00A0E9', url: 'https://www.simfyafrica.com' },
-  { name: 'Mdundo', logo: 'mdundo.png', icon: '🎵', color: '#FF6B00', url: 'https://mdundo.com' },
-  { name: 'Zvooq', logo: 'zvooq.png', icon: '🎵', color: '#FF0055', url: 'https://zvooq.ru' },
-  { name: 'Adaptr', logo: 'adaptr.png', icon: '🎵', color: '#0066CC', url: 'https://adaptr.com' },
-  { name: 'Akazoo', logo: 'akazoo.png', icon: '🎵', color: '#FF0000', url: 'https://akazoo.com' },
-  { name: 'Anghami Plus', logo: 'anghami-plus.png', icon: '🎵', color: '#A20074', url: 'https://www.anghami.com' },
-  
-  // Fitness & Lifestyle (10)
-  { name: 'Peloton', logo: 'peloton.png', icon: '🚴', color: '#000000', url: 'https://www.onepeloton.com' },
-  { name: 'Fit Radio', logo: 'fitradio.png', icon: '💪', color: '#FF0055', url: 'https://fitradio.com' },
-  { name: 'Rockbot', logo: 'rockbot.png', icon: '🎵', color: '#FF6B00', url: 'https://rockbot.com' },
-  { name: 'Soundtrack Business', logo: 'soundtrack-business.png', icon: '🎵', color: '#000000', url: 'https://www.soundtrackyourbrand.com' },
-  { name: 'Cloud Cover Music', logo: 'cloudcover.png', icon: '🎵', color: '#0066CC', url: 'https://www.cloudcovermusic.com' },
-  { name: 'Mood Media', logo: 'mood.png', icon: '🎵', color: '#FF0055', url: 'https://us.moodmedia.com' },
-  { name: 'PlayNetwork', logo: 'playnetwork.png', icon: '🎵', color: '#0066CC', url: 'https://www.playnetwork.com' },
-  { name: 'Qsic', logo: 'qsic.png', icon: '🎵', color: '#FF6B00', url: 'https://qsic.com' },
-  { name: 'Soundtrack Player', logo: 'soundtrack-player.png', icon: '🎵', color: '#000000', url: 'https://www.soundtrackyourbrand.com' },
-  { name: 'Ambie', logo: 'ambie.png', icon: '🎵', color: '#00A0E9', url: 'https://ambie.fm' },
-  
-  // Gaming & Virtual (10)
-  { name: 'Twitch', logo: 'twitch.png', icon: '🎮', color: '#9146FF', url: 'https://www.twitch.tv' },
-  { name: 'Discord', logo: 'discord.png', icon: '💬', color: '#5865F2', url: 'https://discord.com' },
-  { name: 'Roblox', logo: 'roblox.png', icon: '🎮', color: '#000000', url: 'https://www.roblox.com' },
-  { name: 'Fortnite', logo: 'fortnite.png', icon: '🎮', color: '#000000', url: 'https://www.epicgames.com/fortnite' },
-  { name: 'Beat Saber', logo: 'beatsaber.png', icon: '🎮', color: '#FF0055', url: 'https://beatsaber.com' },
-  { name: 'Oculus', logo: 'oculus.png', icon: '🥽', color: '#1C1E20', url: 'https://www.oculus.com' },
-  { name: 'Meta Horizon', logo: 'meta-horizon.png', icon: '🌐', color: '#0081FB', url: 'https://www.meta.com' },
-  { name: 'Rec Room', logo: 'recroom.png', icon: '🎮', color: '#FF6B00', url: 'https://recroom.com' },
-  { name: 'VRChat', logo: 'vrchat.png', icon: '🥽', color: '#000000', url: 'https://hello.vrchat.com' },
-  { name: 'Spatial', logo: 'spatial.png', icon: '🌐', color: '#000000', url: 'https://spatial.io' },
-  
-  // Telecom & Carrier (10)
-  { name: 'Verizon', logo: 'verizon.png', icon: '📱', color: '#CD040B', url: 'https://www.verizon.com' },
-  { name: 'AT&T', logo: 'att.png', icon: '📱', color: '#00A8E0', url: 'https://www.att.com' },
-  { name: 'T-Mobile', logo: 'tmobile.png', icon: '📱', color: '#E20074', url: 'https://www.t-mobile.com' },
-  { name: 'Vodafone', logo: 'vodafone.png', icon: '📱', color: '#E60000', url: 'https://www.vodafone.com' },
-  { name: 'Orange', logo: 'orange.png', icon: '📱', color: '#FF7900', url: 'https://www.orange.com' },
-  { name: 'Telekom', logo: 'telekom.png', icon: '📱', color: '#E20074', url: 'https://www.telekom.com' },
-  { name: 'Telefonica', logo: 'telefonica.png', icon: '📱', color: '#019DF4', url: 'https://www.telefonica.com' },
-  { name: 'SK Telecom', logo: 'sktelecom.png', icon: '📱', color: '#EA002C', url: 'https://www.sktelecom.com' },
-  { name: 'KT', logo: 'kt.png', icon: '📱', color: '#E60012', url: 'https://www.kt.com' },
-  { name: 'LG U+', logo: 'lguplus.png', icon: '📱', color: '#E4007F', url: 'https://www.lguplus.com' },
-  
-  // Radio & Podcast (10)
-  { name: 'Radio.com', logo: 'radio-com.png', icon: '📻', color: '#0066CC', url: 'https://www.audacy.com' },
-  { name: 'TuneIn', logo: 'tunein.png', icon: '📻', color: '#14D8CC', url: 'https://tunein.com' },
-  { name: 'Stitcher', logo: 'stitcher.png', icon: '🎙️', color: '#000000', url: 'https://www.stitcher.com' },
-  { name: 'Podcast Addict', logo: 'podcastaddict.png', icon: '🎙️', color: '#FF6600', url: 'https://podcastaddict.com' },
-  { name: 'Castbox', logo: 'castbox.png', icon: '🎙️', color: '#F55B23', url: 'https://castbox.fm' },
-  { name: 'Overcast', logo: 'overcast.png', icon: '🎙️', color: '#FC7E0F', url: 'https://overcast.fm' },
-  { name: 'Pocket Casts', logo: 'pocketcasts.png', icon: '🎙️', color: '#F43E37', url: 'https://pocketcasts.com' },
-  { name: 'Player FM', logo: 'playerfm.png', icon: '🎙️', color: '#C8161D', url: 'https://player.fm' },
-  { name: 'Podbean', logo: 'podbean.png', icon: '🎙️', color: '#F55B23', url: 'https://www.podbean.com' },
-  { name: 'RadioPublic', logo: 'radiopublic.png', icon: '🎙️', color: '#CE0E2D', url: 'https://radiopublic.com' },
-  
-  // Additional Platforms (23)
-  { name: 'Bmat', logo: 'bmat.png', icon: '🎵', color: '#000000', url: 'https://www.bmat.com' },
-  { name: 'MusixMatch', logo: 'musixmatch.png', icon: '🎵', color: '#FF6B00', url: 'https://www.musixmatch.com' },
-  { name: 'Pretzel', logo: 'pretzel.png', icon: '🎵', color: '#9B59B6', url: 'https://www.pretzel.rocks' },
-  { name: 'Epidemic Sound', logo: 'epidemic.png', icon: '🎵', color: '#000000', url: 'https://www.epidemicsound.com' },
-  { name: 'Artlist', logo: 'artlist.png', icon: '🎵', color: '#000000', url: 'https://artlist.io' },
-  { name: 'Soundstripe', logo: 'soundstripe.png', icon: '🎵', color: '#FF6B00', url: 'https://www.soundstripe.com' },
-  { name: 'Music Vine', logo: 'musicvine.png', icon: '🎵', color: '#00A0E9', url: 'https://www.musicvine.com' },
-  { name: 'Jamendo', logo: 'jamendo.png', icon: '🎵', color: '#FF0055', url: 'https://www.jamendo.com' },
-  { name: 'Free Music Archive', logo: 'fma.png', icon: '🎵', color: '#0066CC', url: 'https://freemusicarchive.org' },
-  { name: 'ccMixter', logo: 'ccmixter.png', icon: '🎵', color: '#FF6B00', url: 'https://ccmixter.org' },
-  { name: 'SoundClick', logo: 'soundclick.png', icon: '🎵', color: '#FF0000', url: 'https://www.soundclick.com' },
-  { name: 'ReverbNation', logo: 'reverbnation.png', icon: '🎵', color: '#E1000F', url: 'https://www.reverbnation.com' },
-  { name: 'Mixcloud', logo: 'mixcloud.png', icon: '🎵', color: '#314359', url: 'https://www.mixcloud.com' },
-  { name: '8tracks', logo: '8tracks.png', icon: '🎵', color: '#2C3E50', url: 'https://8tracks.com' },
-  { name: 'Hearthis.at', logo: 'hearthis.png', icon: '🎵', color: '#FF6B00', url: 'https://hearthis.at' },
-  { name: 'Audioboom', logo: 'audioboom.png', icon: '🎙️', color: '#007BFF', url: 'https://audioboom.com' },
-  { name: 'Spreaker', logo: 'spreaker.png', icon: '🎙️', color: '#F5821F', url: 'https://www.spreaker.com' },
-  { name: 'Anchor', logo: 'anchor.png', icon: '🎙️', color: '#8E44AD', url: 'https://anchor.fm' },
-  { name: 'Acast', logo: 'acast.png', icon: '🎙️', color: '#000000', url: 'https://www.acast.com' },
-  { name: 'Podchaser', logo: 'podchaser.png', icon: '🎙️', color: '#FF6B00', url: 'https://www.podchaser.com' },
-  { name: 'Goodpods', logo: 'goodpods.png', icon: '🎙️', color: '#FF0055', url: 'https://goodpods.com' },
-  { name: 'Podimo', logo: 'podimo.png', icon: '🎙️', color: '#FF0055', url: 'https://podimo.com' },
-  { name: 'Luminary', logo: 'luminary.png', icon: '🎙️', color: '#000000', url: 'https://luminarypodcasts.com' }
+  // Tier 1 — Major
+  { name: 'Spotify',         color: '#1DB954', category: 'Streaming' },
+  { name: 'Apple Music',     color: '#FA243C', category: 'Streaming' },
+  { name: 'YouTube Music',   color: '#FF0000', category: 'Streaming' },
+  { name: 'Amazon Music',    color: '#FF9900', category: 'Streaming' },
+  { name: 'Deezer',          color: '#A238FF', category: 'Streaming' },
+  { name: 'Tidal',           color: '#00E5FF', category: 'Streaming' },
+  { name: 'Pandora',         color: '#224099', category: 'Streaming' },
+  { name: 'SoundCloud',      color: '#FF5500', category: 'Streaming' },
+  { name: 'iHeartRadio',     color: '#C6002B', category: 'Streaming' },
+  { name: 'Shazam',          color: '#0088FF', category: 'Streaming' },
+  { name: 'Napster',         color: '#a78bfa', category: 'Streaming' },
+  { name: 'Qobuz',           color: '#6366f1', category: 'Streaming' },
+  // Social
+  { name: 'TikTok',          color: '#69C9D0', category: 'Social' },
+  { name: 'Instagram',       color: '#E4405F', category: 'Social' },
+  { name: 'Facebook',        color: '#1877F2', category: 'Social' },
+  { name: 'Snapchat',        color: '#FFFC00', category: 'Social' },
+  { name: 'Triller',         color: '#FF0050', category: 'Social' },
+  // Asia
+  { name: 'Anghami',         color: '#A20074', category: 'Asia & Regional' },
+  { name: 'Boomplay',        color: '#FF6B00', category: 'Asia & Regional' },
+  { name: 'JOOX',            color: '#00D9FF', category: 'Asia & Regional' },
+  { name: 'KKBOX',           color: '#0E88EB', category: 'Asia & Regional' },
+  { name: 'NetEase',         color: '#E60012', category: 'Asia & Regional' },
+  { name: 'QQ Music',        color: '#31C27C', category: 'Asia & Regional' },
+  { name: 'JioSaavn',        color: '#2BC5B4', category: 'Asia & Regional' },
+  { name: 'Gaana',           color: '#E8352D', category: 'Asia & Regional' },
+  { name: 'Wynk Music',      color: '#FF0055', category: 'Asia & Regional' },
+  { name: 'Hungama',         color: '#D91E36', category: 'Asia & Regional' },
+  { name: 'Melon',           color: '#00CD3C', category: 'Asia & Regional' },
+  { name: 'Genie',           color: '#00A0E9', category: 'Asia & Regional' },
+  { name: 'LINE MUSIC',      color: '#00B900', category: 'Asia & Regional' },
+  { name: 'Yandex Music',    color: '#FFCC00', category: 'Asia & Regional' },
+  // Niche
+  { name: 'Audiomack',       color: '#FFA200', category: 'Niche' },
+  { name: 'Bandcamp',        color: '#1DA0C3', category: 'Niche' },
+  { name: 'Beatport',        color: '#94D500', category: 'Niche' },
+  { name: 'Twitch',          color: '#9146FF', category: 'Niche' },
+  { name: 'TuneIn',          color: '#14D8CC', category: 'Niche' },
+  { name: 'Audioboom',       color: '#007BFF', category: 'Niche' },
+  { name: 'Mixcloud',        color: '#52aad8', category: 'Niche' },
+  { name: 'ReverbNation',    color: '#E1000F', category: 'Niche' },
 ]
+
+const CATEGORIES = ['Streaming', 'Social', 'Asia & Regional', 'Niche']
 
 export default function ReleaseDetailPage() {
   const router = useRouter()
@@ -152,434 +60,190 @@ export default function ReleaseDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadRelease = async () => {
+    const load = async () => {
       try {
-        const releaseId = params.id as string
-        const docRef = doc(db, 'submissions', releaseId)
-        const docSnap = await getDoc(docRef)
-        
-        if (docSnap.exists()) {
-          setRelease({
-            id: docSnap.id,
-            ...docSnap.data()
-          })
-        } else {
-          alert('Release not found')
-          router.push('/dashboard')
-        }
-      } catch (error) {
-        console.error('Error loading release:', error)
-        alert('Error loading release')
-      } finally {
-        setLoading(false)
-      }
+        const snap = await getDoc(doc(db, 'submissions', params.id as string))
+        if (snap.exists()) setRelease({ id: snap.id, ...snap.data() })
+        else router.push('/dashboard')
+      } catch (e) { console.error(e) }
+      finally { setLoading(false) }
     }
-
-    loadRelease()
+    load()
   }, [params.id, router])
 
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return {
-          label: 'Under Review',
-          color: '#FFA500',
-          icon: '⏱',
-          description: 'Your release is being reviewed by our team'
-        }
-      case 'approved':
-        return {
-          label: 'Approved & Processing',
-          color: '#27ae60',
-          icon: '✓',
-          description: 'Release approved! Being distributed to all platforms'
-        }
-      case 'rejected':
-        return {
-          label: 'Rejected',
-          color: '#e74c3c',
-          icon: '✗',
-          description: 'Release needs revision. Check your email for details'
-        }
-      case 'live':
-        return {
-          label: 'Live on Stores',
-          color: '#3498db',
-          icon: '🎉',
-          description: 'Your music is now available worldwide!'
-        }
-      default:
-        return {
-          label: 'Unknown',
-          color: '#95a5a6',
-          icon: '?',
-          description: 'Status unknown'
-        }
-    }
-  }
+  const getStatus = (s: string) => ({
+    pending:  { label: 'Under Review',      color: '#fbbf24', glow: 'rgba(251,191,36,0.3)',  desc: 'Being reviewed by our team' },
+    approved: { label: 'Approved & Live',   color: '#34d399', glow: 'rgba(52,211,153,0.3)',  desc: 'Distributed to all platforms' },
+    rejected: { label: 'Needs Revision',    color: '#f87171', glow: 'rgba(248,113,113,0.3)', desc: 'Check your email for details' },
+    live:     { label: 'Live on Stores',    color: '#818cf8', glow: 'rgba(99,102,241,0.3)',  desc: 'Available worldwide' },
+  }[s] || { label: 'Unknown', color: '#6b7280', glow: 'transparent', desc: '' })
 
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh',
-        background: '#f7fafc'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: '50px', 
-            height: '50px', 
-            border: '4px solid #e2e8f0',
-            borderTop: '4px solid #3498db',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 20px'
-          }} />
-          <p style={{ color: '#718096' }}>Loading release...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#050508' }}>
+      <div style={{ width:'36px', height:'36px', border:'3px solid rgba(255,255,255,0.08)', borderTop:'3px solid #6366f1', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 
   if (!release) return null
+  const st = getStatus(release.status)
+  const isActive = release.status === 'approved' || release.status === 'live'
 
-  const statusInfo = getStatusInfo(release.status)
+  const submittedDate = release.submittedAt?.toDate
+    ? new Date(release.submittedAt.toDate()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'N/A'
+  const releaseDate = release.releaseDate
+    ? new Date(release.releaseDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'TBD'
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f7fafc' }}>
+    <div style={{ minHeight:'100vh', background:'#050508', color:'#fff', fontFamily:"'Inter',-apple-system,sans-serif" }}>
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+        .sc:hover{background:rgba(255,255,255,0.05)!important;transform:translateY(-1px)}
+        .sc{transition:all 0.15s ease!important}
+        .back-btn:hover{background:rgba(255,255,255,0.08)!important}
       `}</style>
-      
-      {/* Header */}
-      <div style={{ 
-        background: '#fff', 
-        borderBottom: '1px solid #e2e8f0',
-        padding: '20px 40px'
-      }}>
-        <button 
-          onClick={() => router.push('/dashboard')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#3498db',
-            cursor: 'pointer',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px'
-          }}
-        >
-          ← Back to Dashboard
+
+      {/* Nav */}
+      <nav style={{ position:'sticky', top:0, zIndex:50, borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(5,5,8,0.85)', backdropFilter:'blur(24px)', padding:'0 32px', height:'56px', display:'flex', alignItems:'center', gap:'12px' }}>
+        <button className="back-btn" onClick={() => router.push('/dashboard')}
+          style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.6)', cursor:'pointer', fontSize:'13px', display:'flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'8px', fontFamily:'inherit', transition:'all 0.15s' }}>
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd"/></svg>
+          Dashboard
         </button>
-      </div>
+        <span style={{ color:'rgba(255,255,255,0.15)', fontSize:'13px' }}>/</span>
+        <span style={{ color:'rgba(255,255,255,0.4)', fontSize:'13px', maxWidth:'300px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{release.title}</span>
+      </nav>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-        {/* Release Header */}
-        <div style={{ 
-          background: '#fff', 
-          borderRadius: '12px', 
-          padding: '30px',
-          marginBottom: '30px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
-            {/* Cover Art */}
-            <div>
-              {release.coverImage ? (
-                <img 
-                  src={release.coverImage} 
-                  alt={release.title}
-                  style={{ 
-                    width: '200px', 
-                    height: '200px', 
-                    objectFit: 'cover', 
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                  }}
-                />
-              ) : (
-                <div style={{ 
-                  width: '200px', 
-                  height: '200px', 
-                  background: '#e2e8f0',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '48px'
-                }}>
-                  🎵
-                </div>
-              )}
+      <div style={{ maxWidth:'960px', margin:'0 auto', padding:'48px 24px', animation:'fadeUp 0.5s ease-out' }}>
+
+        {/* ── HERO ── */}
+        <div style={{ display:'flex', gap:'40px', alignItems:'flex-start', marginBottom:'40px' }}>
+          {/* Cover */}
+          <div style={{ flexShrink:0, position:'relative' }}>
+            {release.coverImage
+              ? <img src={release.coverImage} alt={release.title} style={{ width:'200px', height:'200px', objectFit:'cover', borderRadius:'14px', display:'block', boxShadow:'0 32px 64px rgba(0,0,0,0.7)' }} />
+              : <div style={{ width:'200px', height:'200px', background:'linear-gradient(135deg,#1a1a2e,#16213e)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'56px', border:'1px solid rgba(255,255,255,0.06)' }}>🎵</div>
+            }
+            {/* Status dot on cover */}
+            <div style={{ position:'absolute', bottom:'10px', right:'10px', width:'12px', height:'12px', borderRadius:'50%', background:st.color, boxShadow:`0 0 10px ${st.glow}`, border:'2px solid #050508' }} />
+          </div>
+
+          {/* Info */}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:'11px', fontWeight:700, color:'rgba(255,255,255,0.25)', textTransform:'uppercase', letterSpacing:'2px', marginBottom:'10px' }}>
+              {release.format} · {release.genre}{release.subgenre ? ` · ${release.subgenre}` : ''}
+            </div>
+            <h1 style={{ fontSize:'38px', fontWeight:900, letterSpacing:'-1.5px', lineHeight:1.05, marginBottom:'8px', color:'#fff', wordBreak:'break-word' }}>
+              {release.title}
+            </h1>
+            <p style={{ fontSize:'17px', color:'rgba(255,255,255,0.45)', marginBottom:'24px', fontWeight:400 }}>
+              {release.artist}{release.featuringArtists ? ` feat. ${release.featuringArtists}` : ''}
+            </p>
+
+            {/* Status badge */}
+            <div style={{ display:'inline-flex', alignItems:'center', gap:'10px', padding:'10px 18px', background:`${st.color}12`, border:`1px solid ${st.color}30`, borderRadius:'10px', marginBottom:'28px' }}>
+              <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:st.color, boxShadow:`0 0 8px ${st.glow}`, animation: release.status === 'pending' ? 'pulse 2s infinite' : 'none' }} />
+              <div>
+                <div style={{ fontWeight:700, color:st.color, fontSize:'13px' }}>{st.label}</div>
+                <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'1px' }}>{st.desc}</div>
+              </div>
             </div>
 
-            {/* Release Info */}
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: '32px', fontWeight: 700, marginBottom: '10px' }}>
-                {release.title}
-              </h1>
-              <p style={{ fontSize: '18px', color: '#718096', marginBottom: '20px' }}>
-                By {release.artist}
-                {release.featuringArtists && ` feat. ${release.featuringArtists}`}
-              </p>
-
-              {/* Status Badge */}
-              <div style={{ 
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '12px 20px',
-                background: `${statusInfo.color}15`,
-                border: `2px solid ${statusInfo.color}`,
-                borderRadius: '8px',
-                marginBottom: '20px'
-              }}>
-                <span style={{ fontSize: '24px' }}>{statusInfo.icon}</span>
-                <div>
-                  <div style={{ 
-                    fontWeight: 600, 
-                    color: statusInfo.color,
-                    fontSize: '16px'
-                  }}>
-                    {statusInfo.label}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#718096' }}>
-                    {statusInfo.description}
-                  </div>
+            {/* Meta pills */}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+              {[
+                { icon: <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/></svg>, label: releaseDate },
+                { icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>, label: 'Worldwide · 240 territories' },
+                { icon: <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/></svg>, label: `${release.tracks} track${release.tracks > 1 ? 's' : ''}` },
+                { icon: <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/></svg>, label: `Submitted ${submittedDate}` },
+              ].map(({ icon, label }) => (
+                <div key={label} style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 12px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'20px', fontSize:'12px', color:'rgba(255,255,255,0.55)', fontWeight:500 }}>
+                  <span style={{ color:'rgba(255,255,255,0.35)', display:'flex', alignItems:'center' }}>{icon}</span>
+                  {label}
                 </div>
-              </div>
-
-              {/* Release Details */}
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: '20px',
-                marginTop: '20px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Format
-                  </div>
-                  <div style={{ fontWeight: 600 }}>{release.format}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Genre
-                  </div>
-                  <div style={{ fontWeight: 600 }}>{release.genre}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Tracks
-                  </div>
-                  <div style={{ fontWeight: 600 }}>{release.tracks} Track{release.tracks > 1 ? 's' : ''}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Release Date
-                  </div>
-                  <div style={{ fontWeight: 600 }}>
-                    {release.releaseDate ? new Date(release.releaseDate).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    }) : 'TBD'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Territories
-                  </div>
-                  <div style={{ fontWeight: 600 }}>Worldwide (240)</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#a0aec0', marginBottom: '5px' }}>
-                    Submitted
-                  </div>
-                  <div style={{ fontWeight: 600 }}>
-                    {release.submittedAt?.toDate ? 
-                      new Date(release.submittedAt.toDate()).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: 'numeric'
-                      }) : 'N/A'}
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Stores & Platforms */}
-        <div style={{ 
-          background: '#fff', 
-          borderRadius: '12px', 
-          padding: '30px',
-          marginBottom: '30px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600 }}>
-              Available on 120+ Stores & Platforms
-            </h2>
-            {release.claimYoutubeOAC && (
-              <div style={{
-                padding: '8px 16px',
-                background: '#fff3cd',
-                border: '1px solid #ffc107',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#856404'
-              }}>
-                ✓ YouTube OAC Claimed
-              </div>
-            )}
-          </div>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', 
-            gap: '12px'
-          }}>
-            {STORES.map((store) => (
-              <a
-                key={store.name}
-                href={store.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  padding: '16px 12px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  color: '#2d3748',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer',
-                  background: '#fff'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = store.color
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e2e8f0'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                <div style={{ 
-                  width: '48px', 
-                  height: '48px', 
-                  marginBottom: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <img 
-                    src={`/logos/${store.logo}`}
-                    alt={store.name}
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain' 
-                    }}
-                    onError={(e) => {
-                      // Fallback to emoji if logo not found
-                      e.currentTarget.style.display = 'none'
-                      e.currentTarget.parentElement!.innerHTML = `<span style="font-size: 32px">${store.icon}</span>`
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', lineHeight: '1.3' }}>
-                  {store.name}
-                </div>
-                {release.status === 'approved' || release.status === 'live' ? (
-                  <div style={{ 
-                    fontSize: '10px', 
-                    color: '#27ae60', 
-                    marginTop: '6px',
-                    fontWeight: 600
-                  }}>
-                    {release.status === 'live' ? '✓ Live' : '⏱ Processing'}
+        {/* ── TRACK LIST ── */}
+        {release.trackDetails?.length > 0 && (
+          <section style={{ marginBottom:'28px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' }}>
+              <h2 style={{ fontSize:'13px', fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'1.5px' }}>Tracklist</h2>
+              <span style={{ fontSize:'12px', color:'rgba(255,255,255,0.2)' }}>{release.trackDetails.length} track{release.trackDetails.length > 1 ? 's' : ''}</span>
+            </div>
+            <div style={{ background:'#0c0c14', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'14px', overflow:'hidden' }}>
+              {release.trackDetails.map((track: any, i: number) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'16px', padding:'14px 20px', borderBottom: i < release.trackDetails.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', transition:'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ width:'28px', height:'28px', borderRadius:'50%', background:'rgba(99,102,241,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#818cf8', flexShrink:0 }}>{i + 1}</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:'14px', color:'#fff', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{track.title}</div>
+                    <div style={{ fontSize:'12px', color:'rgba(255,255,255,0.35)', marginTop:'2px' }}>{track.artist || release.artist}</div>
                   </div>
-                ) : (
-                  <div style={{ 
-                    fontSize: '10px', 
-                    color: '#a0aec0', 
-                    marginTop: '6px'
-                  }}>
-                    Pending
-                  </div>
-                )}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Track List */}
-        {release.trackDetails && release.trackDetails.length > 0 && (
-          <div style={{ 
-            background: '#fff', 
-            borderRadius: '12px', 
-            padding: '30px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px' }}>
-              Track List
-            </h2>
-            {release.trackDetails.map((track: any, index: number) => (
-              <div 
-                key={index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '15px',
-                  padding: '15px',
-                  borderBottom: index < release.trackDetails.length - 1 ? '1px solid #e2e8f0' : 'none'
-                }}
-              >
-                <div style={{ 
-                  minWidth: '30px',
-                  height: '30px',
-                  background: '#f7fafc',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 600,
-                  color: '#718096'
-                }}>
-                  {index + 1}
+                  {track.isrc && <span style={{ fontSize:'10px', color:'rgba(255,255,255,0.2)', fontFamily:'monospace', background:'rgba(255,255,255,0.04)', padding:'3px 8px', borderRadius:'4px' }}>{track.isrc}</span>}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>
-                    {track.title}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#718096' }}>
-                    {track.artist || release.artist}
-                  </div>
-                </div>
-                {track.audioUrl && (
-                  <audio 
-                    controls 
-                    style={{ height: '35px' }}
-                    src={track.audioUrl}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </section>
         )}
+
+        {/* ── DISTRIBUTION ── */}
+        <section>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' }}>
+            <h2 style={{ fontSize:'13px', fontWeight:700, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'1.5px' }}>Distribution</h2>
+            <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+              {release.claimYoutubeOAC && (
+                <span style={{ fontSize:'11px', fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.2)', padding:'4px 10px', borderRadius:'6px' }}>✓ YouTube OAC</span>
+              )}
+              <div style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', color:'rgba(255,255,255,0.3)' }}>
+                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: isActive ? '#34d399' : 'rgba(255,255,255,0.2)', boxShadow: isActive ? '0 0 6px #34d399' : 'none' }} />
+                {isActive ? (release.status === 'live' ? 'Live' : 'Processing') : 'Pending approval'}
+              </div>
+            </div>
+          </div>
+
+          {CATEGORIES.map(cat => {
+            const stores = STORES.filter(s => s.category === cat)
+            return (
+              <div key={cat} style={{ marginBottom:'20px' }}>
+                <div style={{ fontSize:'10px', fontWeight:700, color:'rgba(255,255,255,0.2)', textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:'10px', paddingLeft:'2px' }}>{cat}</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+                  {stores.map(store => (
+                    <a key={store.name} href="#" onClick={e => e.preventDefault()} className="sc"
+                      style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 14px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'8px', textDecoration:'none', cursor:'default' }}>
+                      {/* Color dot */}
+                      <div style={{ width:'8px', height:'8px', borderRadius:'50%', background: isActive ? store.color : 'rgba(255,255,255,0.15)', flexShrink:0, boxShadow: isActive ? `0 0 6px ${store.color}80` : 'none', transition:'all 0.2s' }} />
+                      <span style={{ fontSize:'12px', fontWeight:600, color: isActive ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)', whiteSpace:'nowrap' }}>{store.name}</span>
+                      {isActive && (
+                        <span style={{ fontSize:'9px', fontWeight:700, color: release.status === 'live' ? '#34d399' : '#fbbf24', background: release.status === 'live' ? 'rgba(52,211,153,0.1)' : 'rgba(251,191,36,0.1)', padding:'2px 6px', borderRadius:'4px', marginLeft:'2px' }}>
+                          {release.status === 'live' ? 'LIVE' : 'PROCESSING'}
+                        </span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+
+          <div style={{ marginTop:'24px', padding:'16px 20px', background:'rgba(99,102,241,0.05)', border:'1px solid rgba(99,102,241,0.12)', borderRadius:'10px', display:'flex', alignItems:'center', gap:'12px' }}>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="#818cf8" style={{ flexShrink:0 }}>
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+            </svg>
+            <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.4)', lineHeight:'1.5', margin:0 }}>
+              Your release is being distributed to <strong style={{ color:'rgba(255,255,255,0.6)' }}>120+ stores & platforms</strong> across 240 territories worldwide. Processing typically takes 3–5 business days after approval.
+            </p>
+          </div>
+        </section>
+
       </div>
     </div>
   )

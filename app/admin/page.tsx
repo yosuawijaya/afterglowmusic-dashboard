@@ -16,6 +16,7 @@ interface Submission {
   status: 'pending' | 'approved' | 'rejected'
   submittedAt: string
   releaseDate: string
+  coverImage?: string
 }
 
 interface User {
@@ -36,457 +37,351 @@ export default function AdminPage() {
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn')
     const userRole = localStorage.getItem('userRole')
-    
-    if (!isLoggedIn) {
-      router.push('/')
-      return
-    }
+    if (!isLoggedIn) { router.push('/'); return }
+    if (userRole !== 'admin') { router.push('/dashboard'); return }
 
-    if (userRole !== 'admin') {
-      router.push('/dashboard')
-    }
-
-    // Load submissions from Firestore (real-time)
     const submissionsQuery = query(collection(db, 'submissions'), orderBy('submittedAt', 'desc'))
-    const unsubscribeSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
-      const submissionsData: Submission[] = []
-      snapshot.forEach((doc) => {
-        submissionsData.push({
-          id: doc.id,
-          ...doc.data(),
-          submittedAt: doc.data().submittedAt?.toDate().toISOString() || new Date().toISOString()
-        } as Submission)
+    const unsubSub = onSnapshot(submissionsQuery, (snapshot) => {
+      const data: Submission[] = []
+      snapshot.forEach((d) => {
+        data.push({ id: d.id, ...d.data(), submittedAt: d.data().submittedAt?.toDate().toISOString() || new Date().toISOString() } as Submission)
       })
-      setSubmissions(submissionsData)
+      setSubmissions(data)
     })
 
-    // Load users from Firestore (real-time)
     const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'))
-    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-      const usersData: User[] = []
-      snapshot.forEach((doc) => {
-        usersData.push({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate().toISOString() || new Date().toISOString()
-        } as User)
+    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+      const data: User[] = []
+      snapshot.forEach((d) => {
+        data.push({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate().toISOString() || new Date().toISOString() } as User)
       })
-      setUsers(usersData)
+      setUsers(data)
     })
 
-    return () => {
-      unsubscribeSubmissions()
-      unsubscribeUsers()
-    }
+    return () => { unsubSub(); unsubUsers() }
   }, [router])
 
-  const handleLogout = () => {
-    localStorage.clear()
-    router.push('/')
-  }
+  const handleLogout = () => { localStorage.clear(); router.push('/') }
 
   const handleApprove = async (submissionId: string) => {
     const submission = submissions.find(s => s.id === submissionId)
     if (!submission) return
-
     try {
-      // Update status in Firestore
-      await updateDoc(doc(db, 'submissions', submissionId), {
-        status: 'approved'
-      })
-
-      // Send approval email
+      await updateDoc(doc(db, 'submissions', submissionId), { status: 'approved' })
       await fetch('/api/send-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userEmail: submission.userEmail,
-          title: submission.title,
-          artist: submission.artist,
-          releaseDate: submission.releaseDate
-        })
+        body: JSON.stringify({ userEmail: submission.userEmail, title: submission.title, artist: submission.artist, releaseDate: submission.releaseDate })
       })
-      
-      alert('Release approved and email sent!')
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error approving release')
-    }
+    } catch (error) { console.error('Error:', error) }
   }
 
   const handleReject = async (submissionId: string) => {
     const submission = submissions.find(s => s.id === submissionId)
     if (!submission) return
-
     const reason = prompt('Reason for rejection:')
     if (!reason) return
-
     try {
-      // Update status in Firestore
-      await updateDoc(doc(db, 'submissions', submissionId), {
-        status: 'rejected',
-        rejectionReason: reason
-      })
-
-      // Send rejection email
+      await updateDoc(doc(db, 'submissions', submissionId), { status: 'rejected', rejectionReason: reason })
       await fetch('/api/send-rejection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userEmail: submission.userEmail,
-          title: submission.title,
-          artist: submission.artist,
-          reason
-        })
+        body: JSON.stringify({ userEmail: submission.userEmail, title: submission.title, artist: submission.artist, reason })
       })
-      
-      alert('Release rejected and email sent!')
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error rejecting release')
-    }
-  }
-
-  const handleAddUser = () => {
-    setShowAddUser(true)
+    } catch (error) { console.error('Error:', error) }
   }
 
   const handleDeleteUser = async (userId: string, userEmail: string) => {
-    if (!confirm(`Are you sure you want to delete user: ${userEmail}?`)) return
-
-    try {
-      // Note: This only deletes from Firestore, not Firebase Auth
-      // You'll need Firebase Admin SDK to delete from Auth
-      alert('User deletion requires Firebase Admin SDK. Please contact developer.')
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error deleting user')
-    }
+    if (!confirm(`Delete user: ${userEmail}?`)) return
+    alert('User deletion requires Firebase Admin SDK.')
   }
+
+  const pending = submissions.filter(s => s.status === 'pending').length
+  const approved = submissions.filter(s => s.status === 'approved').length
+  const rejected = submissions.filter(s => s.status === 'rejected').length
 
   return (
     <div className="dashboard">
+      {/* Sidebar */}
       <div className="sidebar">
         <div className="logo">Afterglow Music</div>
-        <div 
-          className={`nav-item ${activeTab === 'submissions' ? 'active' : ''}`}
-          onClick={() => setActiveTab('submissions')}
-        >
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+
+        <div className="nav-section-label">Admin</div>
+        <div className={`nav-item ${activeTab === 'submissions' ? 'active' : ''}`} onClick={() => setActiveTab('submissions')}>
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
             <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
           </svg>
-          Submissions
+          <span>Submissions</span>
+          {pending > 0 && <span className="nav-badge">{pending}</span>}
         </div>
-        <div 
-          className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+        <div className={`nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
           </svg>
-          User Management
+          <span>Users</span>
+          <span className="nav-badge">{users.length}</span>
         </div>
+
+        <div className="nav-section-label">Navigation</div>
         <div className="nav-item" onClick={() => router.push('/dashboard')}>
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
           </svg>
-          All Releases
+          <span>All Releases</span>
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="nav-item" onClick={handleLogout} style={{ color: 'rgba(248,113,113,0.7)' }}>
+            <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.7 }}>
+              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/>
+            </svg>
+            <span>Logout</span>
+          </div>
         </div>
       </div>
 
+      {/* Main */}
       <div className="main-content">
         <div className="header">
-          <h1>Admin - {activeTab === 'submissions' ? 'Release Submissions' : 'User Management'}</h1>
+          <div className="header-left">
+            <h1>{activeTab === 'submissions' ? 'Release Submissions' : 'User Management'}</h1>
+            <p>{activeTab === 'submissions' ? 'Review and manage artist submissions' : 'Manage platform users'}</p>
+          </div>
           <div className="user-info">
-            <span>Admin Panel</span>
-            <button className="btn-logout" onClick={handleLogout}>
-              Logout
-            </button>
+            <div className="user-avatar">A</div>
+            <span>Admin</span>
+            <button className="btn-logout" onClick={handleLogout}>Logout</button>
           </div>
         </div>
 
-        <div style={{ padding: '20px 0' }}>
-          {activeTab === 'submissions' ? (
-            <>
-              <div className="stats" style={{ marginBottom: '30px' }}>
-                <div className="stat-card">
-                  <h3>Pending</h3>
-                  <div className="value">{submissions.filter(s => s.status === 'pending').length}</div>
+        {activeTab === 'submissions' ? (
+          <>
+            {/* Stats */}
+            <div className="stats">
+              <div className="stat-card">
+                <div className="stat-card-icon" style={{ background: 'rgba(251,191,36,0.12)' }}>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="#fbbf24"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/></svg>
                 </div>
-                <div className="stat-card">
-                  <h3>Approved</h3>
-                  <div className="value">{submissions.filter(s => s.status === 'approved').length}</div>
-                </div>
-                <div className="stat-card">
-                  <h3>Rejected</h3>
-                  <div className="value">{submissions.filter(s => s.status === 'rejected').length}</div>
-                </div>
-                <div className="stat-card">
-                  <h3>Total</h3>
-                  <div className="value">{submissions.length}</div>
+                <h3>Pending</h3>
+                <div className="value">{pending}</div>
+                <div className="trend" style={{ color: pending > 0 ? '#fbbf24' : '#34d399' }}>
+                  {pending > 0 ? '⚠ Needs review' : '✓ All clear'}
                 </div>
               </div>
-
-              {submissions.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#718096' }}>
-                  <svg width="64" height="64" viewBox="0 0 20 20" fill="currentColor" style={{ margin: '0 auto 20px', opacity: 0.3 }}>
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
-                  </svg>
-                  <h3 style={{ fontSize: '18px', marginBottom: '10px' }}>No Submissions Yet</h3>
-                  <p>Release submissions will appear here for review</p>
+              <div className="stat-card">
+                <div className="stat-card-icon" style={{ background: 'rgba(52,211,153,0.12)' }}>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="#34d399"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
                 </div>
-              ) : (
-                <div className="releases-table">
-                  <div className="table-header" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1.5fr 1.5fr' }}>
-                    <div>Title / Artist</div>
-                    <div>User Email</div>
-                    <div>Genre</div>
-                    <div>Format</div>
-                    <div>Tracks</div>
-                    <div>Status</div>
-                    <div>Action</div>
-                  </div>
-                  {submissions.map((submission) => (
-                    <div key={submission.id} className="table-row" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1.5fr 1.5fr' }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{submission.title}</div>
-                        <div style={{ fontSize: '13px', color: '#718096' }}>By {submission.artist}</div>
-                      </div>
-                      <div style={{ fontSize: '13px' }}>{submission.userEmail}</div>
-                      <div>{submission.genre}</div>
-                      <div>{submission.format}</div>
-                      <div>{submission.tracks}</div>
-                      <div>
-                        <span className={`status-badge ${
-                          submission.status === 'approved' ? 'status-active' : 
-                          submission.status === 'rejected' ? 'status-rejected' : 
-                          'status-pending'
-                        }`} style={{ textTransform: 'capitalize' }}>
-                          {submission.status}
+                <h3>Approved</h3>
+                <div className="value">{approved}</div>
+                <div className="trend">↑ Live releases</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-icon" style={{ background: 'rgba(248,113,113,0.12)' }}>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="#f87171"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
+                </div>
+                <h3>Rejected</h3>
+                <div className="value">{rejected}</div>
+                <div className="trend" style={{ color: 'rgba(255,255,255,0.3)' }}>Total rejected</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-icon" style={{ background: 'rgba(99,102,241,0.15)' }}>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="#818cf8"><path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/></svg>
+                </div>
+                <h3>Total</h3>
+                <div className="value">{submissions.length}</div>
+                <div className="trend">↑ All submissions</div>
+              </div>
+            </div>
+
+            {/* Submissions Table */}
+            {submissions.length === 0 ? (
+              <div className="admin-empty">
+                <svg width="48" height="48" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.15, margin: '0 auto 16px' }}>
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clipRule="evenodd"/>
+                </svg>
+                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px' }}>No submissions yet</p>
+              </div>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Release</th>
+                      <th>User</th>
+                      <th>Genre</th>
+                      <th>Format</th>
+                      <th>Tracks</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '36px', height: '36px', borderRadius: '6px', overflow: 'hidden',
+                              background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px'
+                            }}>
+                              {s.coverImage ? <img src={s.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🎵'}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '13px', color: '#fff' }}>{s.title}</div>
+                              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>by {s.artist}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{s.userEmail}</td>
+                        <td style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{s.genre}</td>
+                        <td style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{s.format}</td>
+                        <td style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{s.tracks}</td>
+                        <td style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                          {new Date(s.submittedAt).toLocaleDateString('en-GB')}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${s.status === 'approved' ? 'status-active' : s.status === 'rejected' ? 'status-rejected' : 'status-pending'}`} style={{ textTransform: 'capitalize' }}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td>
+                          {s.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button onClick={() => handleApprove(s.id)} className="btn-action-approve">Approve</button>
+                              <button onClick={() => handleReject(s.id)} className="btn-action-reject">Reject</button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Users Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>{users.length} registered users</p>
+              </div>
+              <button onClick={() => setShowAddUser(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+                </svg>
+                Add User
+              </button>
+            </div>
+
+            {/* Users Table */}
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: u.role === 'admin' ? 'linear-gradient(135deg, #6366f1, #ec4899)' : 'rgba(255,255,255,0.1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '13px', fontWeight: 700, color: '#fff', flexShrink: 0
+                          }}>
+                            {u.username?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{u.username}</span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{u.email}</td>
+                      <td>
+                        <span className={`status-badge ${u.role === 'admin' ? 'status-active' : ''}`} style={{ textTransform: 'capitalize' }}>
+                          {u.role}
                         </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {submission.status === 'pending' && (
-                          <>
-                            <button 
-                              className="btn-approve" 
-                              onClick={() => handleApprove(submission.id)}
-                              style={{ 
-                                padding: '6px 12px', 
-                                fontSize: '13px', 
-                                background: '#27ae60', 
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Approve
-                            </button>
-                            <button 
-                              className="btn-reject" 
-                              onClick={() => handleReject(submission.id)}
-                              style={{ 
-                                padding: '6px 12px', 
-                                fontSize: '13px', 
-                                background: '#e74c3c', 
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Reject
-                            </button>
-                          </>
+                      </td>
+                      <td style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                        {new Date(u.createdAt).toLocaleDateString('en-GB')}
+                      </td>
+                      <td>
+                        {u.role !== 'admin' ? (
+                          <button onClick={() => handleDeleteUser(u.id, u.email)} className="btn-action-reject">Delete</button>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>—</span>
                         )}
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '18px', margin: 0 }}>All Users ({users.length})</h2>
-                <button 
-                  onClick={handleAddUser}
-                  style={{ 
-                    padding: '10px 20px', 
-                    background: '#3498db', 
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  + Add User
-                </button>
-              </div>
-
-              {showAddUser && (
-                <div style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(0,0,0,0.5)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 1000
-                }}>
-                  <div style={{
-                    background: 'white',
-                    padding: '30px',
-                    borderRadius: '8px',
-                    width: '90%',
-                    maxWidth: '500px'
-                  }}>
-                    <h2 style={{ marginBottom: '20px' }}>Add New User</h2>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault()
-                      const formData = new FormData(e.currentTarget)
-                      const email = formData.get('email') as string
-                      const password = formData.get('password') as string
-                      const username = formData.get('username') as string
-                      const role = formData.get('role') as string
-
-                      try {
-                        const response = await fetch('/api/create-user', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ email, password, username, role })
-                        })
-
-                        const result = await response.json()
-                        
-                        if (result.success) {
-                          alert('User created successfully!')
-                          setShowAddUser(false)
-                        } else {
-                          alert('Error: ' + (result.error || 'Failed to create user'))
-                        }
-                      } catch (error) {
-                        console.error('Error:', error)
-                        alert('Error creating user')
-                      }
-                    }}>
-                      <div style={{ marginBottom: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Email</label>
-                        <input 
-                          type="email" 
-                          name="email" 
-                          required 
-                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                        />
-                      </div>
-                      <div style={{ marginBottom: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Password</label>
-                        <input 
-                          type="password" 
-                          name="password" 
-                          required 
-                          minLength={6}
-                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                        />
-                      </div>
-                      <div style={{ marginBottom: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Username</label>
-                        <input 
-                          type="text" 
-                          name="username" 
-                          required 
-                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                        />
-                      </div>
-                      <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>Role</label>
-                        <select 
-                          name="role" 
-                          required 
-                          style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                        >
-                          <option value="user">User</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                        <button 
-                          type="button"
-                          onClick={() => setShowAddUser(false)}
-                          style={{ 
-                            padding: '10px 20px', 
-                            background: '#95a5a6', 
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button 
-                          type="submit"
-                          style={{ 
-                            padding: '10px 20px', 
-                            background: '#27ae60', 
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: 600
-                          }}
-                        >
-                          Create User
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              <div className="releases-table">
-                <div className="table-header" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
-                  <div>Email</div>
-                  <div>Username</div>
-                  <div>Role</div>
-                  <div>Created At</div>
-                  <div>Action</div>
-                </div>
-                {users.map((user) => (
-                  <div key={user.id} className="table-row" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr' }}>
-                    <div>{user.email}</div>
-                    <div>{user.username}</div>
-                    <div>
-                      <span className={`status-badge ${user.role === 'admin' ? 'status-active' : ''}`} style={{ textTransform: 'capitalize' }}>
-                        {user.role}
-                      </span>
-                    </div>
-                    <div>{new Date(user.createdAt).toLocaleDateString('en-GB')}</div>
-                    <div>
-                      {user.role !== 'admin' && (
-                        <button 
-                          className="btn-remove" 
-                          onClick={() => handleDeleteUser(user.id, user.email)}
-                          style={{ padding: '6px 12px', fontSize: '13px', width: 'auto', height: 'auto' }}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Add User Modal */}
+      {showAddUser && (
+        <div className="modal-overlay" onClick={() => setShowAddUser(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h2>Add New User</h2>
+              <button className="btn-close" onClick={() => setShowAddUser(false)}>×</button>
+            </div>
+            <form style={{ padding: '24px' }} onSubmit={async (e) => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              try {
+                const res = await fetch('/api/create-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: fd.get('email'), password: fd.get('password'), username: fd.get('username'), role: fd.get('role') })
+                })
+                const result = await res.json()
+                if (result.success) { alert('User created!'); setShowAddUser(false) }
+                else alert('Error: ' + (result.error || 'Failed'))
+              } catch { alert('Error creating user') }
+            }}>
+              {[
+                { label: 'Email', name: 'email', type: 'email' },
+                { label: 'Password', name: 'password', type: 'password' },
+                { label: 'Username', name: 'username', type: 'text' },
+              ].map(({ label, name, type }) => (
+                <div key={name} style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</label>
+                  <input type={type} name={name} required minLength={name === 'password' ? 6 : undefined}
+                    style={{ width: '100%', padding: '10px 13px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '13px', background: 'rgba(255,255,255,0.04)', color: '#fff', fontFamily: 'inherit' }} />
+                </div>
+              ))}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Role</label>
+                <select name="role" required style={{ width: '100%', padding: '10px 13px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '13px', background: '#1a1a2e', color: '#fff', fontFamily: 'inherit' }}>
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="form-actions" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowAddUser(false)}>Cancel</button>
+                <button type="submit" className="btn-save">Create User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

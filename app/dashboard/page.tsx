@@ -636,80 +636,127 @@ export default function Dashboard() {
     <div className="dashboard">
       <div className="sidebar">
         <div className="logo">Afterglow Music</div>
+
         <button className="btn-new-release" onClick={() => setShowCreateForm(true)}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
           </svg>
-          One release
+          <span>New Release</span>
         </button>
+
+        <div className="nav-section-label">Library</div>
         <div className="nav-item active">
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
           </svg>
-          All Releases
+          <span>All Releases</span>
+          {submissions.length > 0 && <span className="nav-badge">{submissions.length}</span>}
         </div>
         <div className="nav-item" onClick={() => router.push('/drafts')}>
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
             <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
           </svg>
-          Drafts
+          <span>Drafts</span>
         </div>
+
+        <div className="nav-section-label">Insights</div>
         <div className="nav-item" onClick={() => router.push('/analytics')}>
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+          <svg className="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="2" y="13" width="4" height="9" rx="1"/>
+            <rect x="9" y="8" width="4" height="14" rx="1"/>
+            <rect x="16" y="3" width="4" height="19" rx="1"/>
           </svg>
-          Analytics
+          <span>Analytics</span>
         </div>
-        <div className="nav-item">
-          <svg className="nav-icon" width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+        <div className="nav-item" onClick={() => router.push('/promotion')}>
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clipRule="evenodd"/>
           </svg>
-          Promotion
+          <span>Promotion</span>
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="nav-item" onClick={handleLogout} style={{ color: 'rgba(248,113,113,0.7)' }}>
+            <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.7 }}>
+              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/>
+            </svg>
+            <span>Logout</span>
+          </div>
         </div>
       </div>
 
       <div className="main-content">
         <div className="header">
-          <h1>All Releases</h1>
+          <div className="header-left">
+            <h1>All Releases</h1>
+            <p>Manage and track your music catalog</p>
+          </div>
           <div className="user-info">
-            <span>Client: {username}</span>
-            <button className="btn-logout" onClick={handleLogout}>
-              Logout
-            </button>
+            <div className="user-avatar">{username.charAt(0).toUpperCase()}</div>
+            <span>{username}</span>
+            <button className="btn-logout" onClick={handleLogout}>Logout</button>
           </div>
         </div>
 
         <div className="stats">
           <div className="stat-card">
+            <div className="stat-card-icon" style={{ background: 'rgba(99,102,241,0.15)' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="#818cf8">
+                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+              </svg>
+            </div>
             <h3>Total Releases</h3>
             <div className="value">{submissions.length}</div>
+            <div className="trend">↑ Active catalog</div>
           </div>
           <div className="stat-card">
+            <div className="stat-card-icon" style={{ background: 'rgba(52,211,153,0.12)' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="#34d399">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
+              </svg>
+            </div>
             <h3>Total Tracks</h3>
             <div className="value">{submissions.reduce((sum, s) => sum + (s.tracks || 0), 0)}</div>
+            <div className="trend">↑ All formats</div>
           </div>
           <div className="stat-card">
+            <div className="stat-card-icon" style={{ background: 'rgba(251,191,36,0.12)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </div>
             <h3>Territories</h3>
             <div className="value">240</div>
+            <div className="trend">↑ Worldwide</div>
           </div>
           <div className="stat-card">
+            <div className="stat-card-icon" style={{ background: 'rgba(236,72,153,0.12)' }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="#ec4899">
+                <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
+              </svg>
+            </div>
             <h3>Stores</h3>
-            <div className="value">120</div>
+            <div className="value">120+</div>
+            <div className="trend">↑ Platforms</div>
           </div>
         </div>
 
         <div className="actions">
           <div className="search-wrapper">
-            <svg className="search-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="search-icon" width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
             </svg>
-            <input
-              type="text"
-              className="search-box"
-              placeholder="Search releases..."
-            />
+            <input type="text" className="search-box" placeholder="Search releases, artists..."/>
           </div>
+          <button className="filter-btn">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd"/>
+            </svg>
+            Filter
+          </button>
           <button className="btn-primary">Export</button>
         </div>
 
@@ -787,7 +834,7 @@ export default function Dashboard() {
                           value={newRelease.featuringArtists}
                           onChange={(e) => setNewRelease({...newRelease, featuringArtists: e.target.value})}
                         />
-                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                        <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
                           Separate multiple artists with commas
                         </small>
                       </div>
@@ -800,12 +847,12 @@ export default function Dashboard() {
                         onDrop={handleCoverDrop}
                         onDragOver={(e) => e.preventDefault()}
                         style={{
-                          border: '2px dashed #cbd5e0',
-                          borderRadius: '8px',
+                          border: '2px dashed rgba(255,255,255,0.1)',
+                          borderRadius: '10px',
                           padding: '40px',
                           textAlign: 'center',
                           cursor: 'pointer',
-                          background: coverPreview ? '#f7fafc' : '#fff'
+                          background: coverPreview ? 'rgba(99,102,241,0.05)' : 'rgba(255,255,255,0.02)'
                         }}
                         onClick={() => document.getElementById('cover-input')?.click()}
                       >
@@ -821,17 +868,17 @@ export default function Dashboard() {
                                 marginBottom: '15px'
                               }} 
                             />
-                            <p style={{ color: '#27ae60', fontWeight: 600, marginBottom: '5px' }}>✓ Cover art uploaded</p>
-                            <p style={{ fontSize: '13px', color: '#718096' }}>Click or drag to replace</p>
+                            <p style={{ color: '#34d399', fontWeight: 600, marginBottom: '5px' }}>✓ Cover art uploaded</p>
+                            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>Click or drag to replace</p>
                           </div>
                         ) : (
                           <div>
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 15px' }}>
-                              <path d="M7 18C5.17107 18.4117 4 19.0443 4 19.7537C4 20.9943 7.58172 22 12 22C16.4183 22 20 20.9943 20 19.7537C20 19.0443 18.8289 18.4117 17 18M12 15V3M12 3L8 7M12 3L16 7" stroke="#718096" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M7 18C5.17107 18.4117 4 19.0443 4 19.7537C4 20.9943 7.58172 22 12 22C16.4183 22 20 20.9943 20 19.7537C20 19.0443 18.8289 18.4117 17 18M12 15V3M12 3L8 7M12 3L16 7" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                            <p style={{ fontWeight: 600, marginBottom: '8px' }}>Drag & drop cover art here</p>
-                            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '15px' }}>or click to browse</p>
-                            <p style={{ fontSize: '12px', color: '#a0aec0' }}>JPG or PNG • Min 3000x3000px • Max 10MB</p>
+                            <p style={{ fontWeight: 600, marginBottom: '8px', color: 'rgba(255,255,255,0.7)' }}>Drag & drop cover art here</p>
+                            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', marginBottom: '15px' }}>or click to browse</p>
+                            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>JPG or PNG • Min 3000x3000px • Max 10MB</p>
                           </div>
                         )}
                         <input
@@ -867,7 +914,7 @@ export default function Dashboard() {
                           onChange={(e) => setNewRelease({...newRelease, spotifyUrl: e.target.value})}
                           required
                         />
-                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                        <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
                           Enter your Spotify artist URL or type "I don't have artist profile yet"
                         </small>
                       </div>
@@ -880,14 +927,14 @@ export default function Dashboard() {
                           onChange={(e) => setNewRelease({...newRelease, appleMusicUrl: e.target.value})}
                           required
                         />
-                        <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                        <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
                           Enter your Apple Music artist URL or type "I don't have artist profile yet"
                         </small>
                       </div>
                     </div>
                     
-                    <div style={{ margin: '30px 0', padding: '25px', background: '#f7fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 600, color: '#1a202c' }}>
+                    <div style={{ margin: '24px 0', padding: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>
                         YouTube Official Artist Channel
                       </h3>
                       
@@ -900,7 +947,7 @@ export default function Dashboard() {
                             value={newRelease.youtubeChannelUrl}
                             onChange={(e) => setNewRelease({...newRelease, youtubeChannelUrl: e.target.value})}
                           />
-                          <small style={{ fontSize: '12px', color: '#718096', marginTop: '5px', display: 'block' }}>
+                          <small style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
                             Enter your YouTube channel URL or type "I don't have channel yet"
                           </small>
                         </div>
@@ -915,10 +962,10 @@ export default function Dashboard() {
                             style={{ marginTop: '3px', width: '18px', height: '18px', cursor: 'pointer' }}
                           />
                           <div>
-                            <span style={{ fontWeight: 600, color: '#2d3748' }}>
+                            <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
                               Claim YouTube Official Artist Channel (OAC)
                             </span>
-                            <p style={{ fontSize: '13px', color: '#718096', marginTop: '6px', lineHeight: '1.5' }}>
+                            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '5px', lineHeight: '1.5' }}>
                               We will help you claim your Official Artist Channel on YouTube. This gives you access to YouTube Music analytics, 
                               artist profile customization, and the official artist badge. Required: You must have an existing YouTube channel.
                             </p>
@@ -1020,32 +1067,32 @@ export default function Dashboard() {
                 {activeTab === 'upload' && (
                   <div className="upload-section">
                     <h3>Upload Audio Files</h3>
-                    <p style={{ color: '#718096', marginBottom: '20px' }}>Upload all your audio files at once. They will automatically be added to the track list.</p>
+                    <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '20px', fontSize: '13px' }}>Upload all your audio files at once. They will automatically be added to the track list.</p>
                     
                     <div 
                       className="dropzone"
                       onDrop={handleAudioDrop}
                       onDragOver={(e) => e.preventDefault()}
                       style={{
-                        border: '2px dashed #cbd5e0',
-                        borderRadius: '8px',
+                        border: '2px dashed rgba(255,255,255,0.1)',
+                        borderRadius: '10px',
                         padding: '60px 40px',
                         textAlign: 'center',
                         cursor: 'pointer',
-                        background: audioFiles.length > 0 ? '#f0f9ff' : '#fff'
+                        background: audioFiles.length > 0 ? 'rgba(99,102,241,0.05)' : 'rgba(255,255,255,0.02)'
                       }}
                       onClick={() => document.getElementById('audio-input')?.click()}
                     >
-                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 20px' }}>
-                        <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 18px' }}>
+                        <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      <p style={{ fontSize: '18px', fontWeight: 600, marginBottom: '10px' }}>
+                      <p style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px', color: 'rgba(255,255,255,0.8)' }}>
                         {audioFiles.length > 0 ? `${audioFiles.length} file(s) uploaded` : 'Drag & drop audio files here'}
                       </p>
-                      <p style={{ fontSize: '14px', color: '#718096', marginBottom: '15px' }}>
+                      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '12px' }}>
                         or click to browse
                       </p>
-                      <p style={{ fontSize: '13px', color: '#a0aec0' }}>
+                      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>
                         MP3, WAV, FLAC • Max 200MB per file • Multiple files supported
                       </p>
                       <input
@@ -1060,7 +1107,7 @@ export default function Dashboard() {
                     
                     {audioFiles.length > 0 && (
                       <div style={{ marginTop: '30px' }}>
-                        <h4 style={{ marginBottom: '15px' }}>Uploaded Files ({audioFiles.length})</h4>
+                        <h4 style={{ marginBottom: '12px', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontWeight: 700 }}>Uploaded Files ({audioFiles.length})</h4>
                         {audioFiles.map((file, index) => (
                           <div 
                             key={index}
@@ -1068,20 +1115,20 @@ export default function Dashboard() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
-                              padding: '15px',
-                              background: '#f7fafc',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '6px',
-                              marginBottom: '10px'
+                              padding: '12px 14px',
+                              background: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.07)',
+                              borderRadius: '8px',
+                              marginBottom: '8px'
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                               </svg>
                               <div style={{ flex: 1 }}>
-                                <p style={{ fontWeight: 600, marginBottom: '3px' }}>{file.name}</p>
-                                <p style={{ fontSize: '12px', color: '#718096' }}>
+                                <p style={{ fontWeight: 600, marginBottom: '2px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>{file.name}</p>
+                                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
                                   {(file.size / (1024 * 1024)).toFixed(2)} MB
                                 </p>
                               </div>
@@ -1090,14 +1137,15 @@ export default function Dashboard() {
                               type="button"
                               onClick={() => removeAudioFile(index)}
                               style={{
-                                width: '32px',
-                                height: '32px',
-                                background: '#e74c3c',
-                                color: 'white',
-                                border: 'none',
+                                width: '28px', height: '28px',
+                                background: 'rgba(239,68,68,0.12)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239,68,68,0.18)',
                                 borderRadius: '50%',
                                 cursor: 'pointer',
-                                fontSize: '18px'
+                                fontSize: '16px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontFamily: 'inherit'
                               }}
                             >
                               ×
@@ -1112,7 +1160,7 @@ export default function Dashboard() {
                 {activeTab === 'tracks' && (
                   <div className="tracks-section">
                     <h3>Track Details & Metadata</h3>
-                    <p style={{ color: '#718096', marginBottom: '20px' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '18px', fontSize: '13px' }}>
                       {tracks.length > 0 ? 'Complete track information and credits below' : 'Please upload audio files first'}
                     </p>
                     
@@ -1120,9 +1168,9 @@ export default function Dashboard() {
                       <div style={{ 
                         padding: '60px 20px', 
                         textAlign: 'center', 
-                        background: '#f7fafc', 
-                        borderRadius: '8px',
-                        border: '2px dashed #cbd5e0'
+                        background: 'rgba(255,255,255,0.02)', 
+                        borderRadius: '10px',
+                        border: '2px dashed rgba(255,255,255,0.08)'
                       }}>
                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 20px', opacity: 0.3 }}>
                           <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#718096" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1133,24 +1181,24 @@ export default function Dashboard() {
                     ) : (
                       tracks.map((track, index) => (
                         <div key={index} style={{ 
-                          marginBottom: '30px', 
-                          padding: '25px', 
-                          border: '1px solid #e2e8f0', 
-                          borderRadius: '8px',
-                          background: '#fff'
+                          marginBottom: '20px', 
+                          padding: '20px', 
+                          border: '1px solid rgba(255,255,255,0.07)', 
+                          borderRadius: '10px',
+                          background: 'rgba(255,255,255,0.02)'
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
                             <div style={{ 
-                              minWidth: '40px', 
-                              height: '40px', 
-                              background: '#3498db', 
-                              color: 'white', 
+                              minWidth: '36px', 
+                              height: '36px', 
+                              background: 'rgba(99,102,241,0.2)', 
+                              color: '#818cf8', 
                               borderRadius: '50%', 
                               display: 'flex', 
                               alignItems: 'center', 
                               justifyContent: 'center',
-                              fontWeight: 600,
-                              fontSize: '16px'
+                              fontWeight: 700,
+                              fontSize: '14px'
                             }}>
                               {index + 1}
                             </div>
@@ -1159,23 +1207,24 @@ export default function Dashboard() {
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: '10px',
-                              padding: '10px',
-                              background: '#f7fafc',
-                              borderRadius: '4px'
+                              padding: '9px 12px',
+                              background: 'rgba(255,255,255,0.03)',
+                              borderRadius: '7px',
+                              border: '1px solid rgba(255,255,255,0.06)'
                             }}>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#3498db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 18V5L21 12L9 19V18ZM9 5V19M3 5V19" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                               </svg>
-                              <span style={{ fontSize: '13px', color: '#718096' }}>
+                              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
                                 {track.file ? `${track.file.name} (${(track.file.size / (1024 * 1024)).toFixed(2)} MB)` : 'Audio file uploaded'}
                               </span>
                             </div>
                           </div>
                           
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Basic Information</h4>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: 'rgba(255,255,255,0.85)' }}>Basic Information</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Track Title *
                               </label>
                               <input
@@ -1194,7 +1243,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Primary Artist
                               </label>
                               <input
@@ -1212,7 +1261,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Featuring Artists
                               </label>
                               <input
@@ -1230,7 +1279,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 ISRC Code
                               </label>
                               <input
@@ -1249,10 +1298,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Songwriting & Composition</h4>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: 'rgba(255,255,255,0.85)' }}>Songwriting & Composition</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Composer/Songwriter
                               </label>
                               <input
@@ -1270,7 +1319,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Lyricist
                               </label>
                               <input
@@ -1288,7 +1337,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Arranger
                               </label>
                               <input
@@ -1307,10 +1356,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Production & Engineering</h4>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: 'rgba(255,255,255,0.85)' }}>Production & Engineering</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Producer
                               </label>
                               <input
@@ -1328,7 +1377,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Recording Studio
                               </label>
                               <input
@@ -1346,7 +1395,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Mixing Engineer
                               </label>
                               <input
@@ -1364,7 +1413,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Mastering Engineer
                               </label>
                               <input
@@ -1383,10 +1432,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Performers & Musicians</h4>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: 'rgba(255,255,255,0.85)' }}>Performers & Musicians</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Lead Vocals
                               </label>
                               <input
@@ -1404,7 +1453,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Background Vocals
                               </label>
                               <input
@@ -1422,7 +1471,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 Musicians & Instruments
                               </label>
                               <textarea
@@ -1442,10 +1491,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: '#2d3748' }}>Copyright Information</h4>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '15px', color: 'rgba(255,255,255,0.85)' }}>Copyright Information</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 ℗ Line (Sound Recording)
                               </label>
                               <input
@@ -1464,7 +1513,7 @@ export default function Dashboard() {
                               />
                             </div>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                 © Line (Composition)
                               </label>
                               <input
@@ -1505,7 +1554,7 @@ export default function Dashboard() {
                         </select>
                       </div>
                     </div>
-                    <p style={{ color: '#718096', fontSize: '14px', marginTop: '10px' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', marginTop: '10px' }}>
                       Pricing will be automatically converted to local currencies based on store requirements.
                     </p>
                   </div>
@@ -1524,7 +1573,7 @@ export default function Dashboard() {
                             checked={newRelease.territories === 'worldwide'}
                             onChange={(e) => setNewRelease({...newRelease, territories: e.target.value})}
                           />
-                          <span style={{ marginLeft: '8px' }}>Worldwide (240 territories)</span>
+                          <span style={{ marginLeft: '8px', color: 'rgba(255,255,255,0.75)', fontSize: '14px' }}>Worldwide (240 territories)</span>
                         </label>
                       </div>
                     </div>
@@ -1538,11 +1587,11 @@ export default function Dashboard() {
                             checked={newRelease.territories === 'selected'}
                             onChange={(e) => setNewRelease({...newRelease, territories: e.target.value})}
                           />
-                          <span style={{ marginLeft: '8px' }}>Selected territories only</span>
+                          <span style={{ marginLeft: '8px', color: 'rgba(255,255,255,0.75)', fontSize: '14px' }}>Selected territories only</span>
                         </label>
                       </div>
                     </div>
-                    <p style={{ color: '#718096', fontSize: '14px', marginTop: '10px' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', marginTop: '10px' }}>
                       Your release will be distributed to 120+ platforms including Spotify, Apple Music, Amazon Music, YouTube Music, and many more worldwide.
                     </p>
                   </div>
@@ -1562,7 +1611,7 @@ export default function Dashboard() {
                         />
                       </div>
                     </div>
-                    <p style={{ color: '#718096', fontSize: '14px', marginTop: '10px' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', marginTop: '10px' }}>
                       Please submit at least 2 weeks before your desired release date to ensure timely distribution.
                     </p>
                   </div>
@@ -1579,7 +1628,7 @@ export default function Dashboard() {
                           placeholder="Add promotional text or press release information..."
                           value={newRelease.promotionText}
                           onChange={(e) => setNewRelease({...newRelease, promotionText: e.target.value})}
-                          style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e0', borderRadius: '4px' }}
+                          style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', color: '#fff', fontFamily: 'inherit', fontSize: '13px' }}
                         />
                       </div>
                     </div>
@@ -1649,30 +1698,25 @@ export default function Dashboard() {
                       alt={submission.title}
                     />
                   ) : (
-                    <div style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      background: '#e2e8f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '64px'
-                    }}>
-                      🎵
-                    </div>
+                    <div className="release-card-cover-placeholder">🎵</div>
                   )}
                   <div 
                     className="release-card-status"
                     style={{
-                      background: submission.status === 'approved' ? 'rgba(39, 174, 96, 0.95)' : 
-                                 submission.status === 'rejected' ? 'rgba(231, 76, 60, 0.95)' : 
-                                 'rgba(255, 165, 0, 0.95)',
-                      color: 'white'
+                      background: submission.status === 'approved' ? 'rgba(52,211,153,0.9)' : 
+                                 submission.status === 'rejected' ? 'rgba(248,113,113,0.9)' : 
+                                 'rgba(251,191,36,0.9)',
+                      color: submission.status === 'pending' ? '#1a1a00' : 'white'
                     }}
                   >
-                    {submission.status === 'approved' ? '✓ Approved' : 
+                    {submission.status === 'approved' ? '✓ Live' : 
                      submission.status === 'rejected' ? '✗ Rejected' : 
                      '⏱ Pending'}
+                  </div>
+                  <div className="release-card-play">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="white">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
+                    </svg>
                   </div>
                 </div>
                 <div className="release-card-content">
@@ -1709,9 +1753,9 @@ export default function Dashboard() {
                   <div style={{ 
                     display: 'flex', 
                     gap: '8px', 
-                    marginTop: '16px',
-                    paddingTop: '16px',
-                    borderTop: '1px solid #e2e8f0'
+                    marginTop: '12px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid rgba(255,255,255,0.06)'
                   }}>
                     <button
                       onClick={(e) => {
@@ -1720,24 +1764,25 @@ export default function Dashboard() {
                       }}
                       style={{
                         flex: 1,
-                        padding: '10px 12px',
-                        background: '#3182ce',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '13px',
+                        padding: '8px 10px',
+                        background: 'rgba(99,102,241,0.15)',
+                        color: '#818cf8',
+                        border: '1px solid rgba(99,102,241,0.2)',
+                        borderRadius: '7px',
+                        fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '6px'
+                        gap: '5px',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#2c5aa0'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#3182ce'}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.25)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.15)' }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                       </svg>
@@ -1750,28 +1795,27 @@ export default function Dashboard() {
                       }}
                       style={{
                         flex: 1,
-                        padding: '10px 12px',
-                        background: '#e53e3e',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '13px',
+                        padding: '8px 10px',
+                        background: 'rgba(239,68,68,0.1)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239,68,68,0.18)',
+                        borderRadius: '7px',
+                        fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '6px'
+                        gap: '5px',
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#c53030'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#e53e3e'}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
                       </svg>
                       Delete
                     </button>
@@ -1789,68 +1833,60 @@ export default function Dashboard() {
           <div 
             className="modal-content" 
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '500px' }}
+            style={{ maxWidth: '480px' }}
           >
             <div className="modal-header">
               <h2>Delete Release</h2>
-              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>
-                ×
-              </button>
+              <button className="btn-close" onClick={() => setShowDeleteConfirm(false)}>×</button>
             </div>
-            <div style={{ padding: '30px' }}>
+            <div style={{ padding: '24px' }}>
               <div style={{ 
-                background: '#fff5f5', 
-                padding: '20px', 
-                borderRadius: '8px', 
-                marginBottom: '20px',
-                border: '1px solid #feb2b2'
+                background: 'rgba(239,68,68,0.08)', 
+                padding: '16px', 
+                borderRadius: '10px', 
+                marginBottom: '18px',
+                border: '1px solid rgba(239,68,68,0.2)'
               }}>
-                <p style={{ fontWeight: 600, marginBottom: '8px', color: '#e53e3e' }}>
+                <p style={{ fontWeight: 700, marginBottom: '6px', color: '#f87171', fontSize: '14px' }}>
                   Are you sure you want to delete this release?
                 </p>
-                <p style={{ fontSize: '14px', color: '#718096' }}>
-                  <strong>{releaseToDelete?.title}</strong> by {releaseToDelete?.artist}
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
+                  <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{releaseToDelete?.title}</strong> by {releaseToDelete?.artist}
                 </p>
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                  Reason for deletion (optional):
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', marginBottom: '7px', fontWeight: 600, fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Reason for deletion (optional)
                 </label>
                 <textarea
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
-                  placeholder="e.g., Wrong files uploaded, Need to make changes, etc."
+                  placeholder="e.g., Wrong files uploaded, need to make changes..."
                   rows={3}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
-                    border: '1px solid #cbd5e0',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    resize: 'vertical'
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    resize: 'vertical',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: '#fff',
+                    fontFamily: 'inherit'
                   }}
                 />
               </div>
 
-              <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginBottom: '18px' }}>
                 This action cannot be undone. Both you and the admin will receive an email notification.
               </p>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    background: 'white',
-                    color: '#2d3748',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
+                  className="btn-secondary"
+                  style={{ flex: 1 }}
                 >
                   Cancel
                 </button>
@@ -1858,15 +1894,19 @@ export default function Dashboard() {
                   onClick={handleDeleteConfirm}
                   style={{
                     flex: 1,
-                    padding: '12px',
-                    background: '#e53e3e',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                    padding: '10px',
+                    background: 'rgba(239,68,68,0.15)',
+                    color: '#f87171',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    borderRadius: '9px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.25)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)' }}
                 >
                   Delete Release
                 </button>
