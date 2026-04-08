@@ -1,37 +1,40 @@
-// Copy paste ini ke Firebase Console → Firestore Database → Rules
+// ══════════════════════════════════════════════════════════════
+// FIRESTORE SECURITY RULES — Afterglow Music Dashboard
+// Copy paste ke: Firebase Console → Firestore Database → Rules
+// ══════════════════════════════════════════════════════════════
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function untuk check string tidak kosong
+
+    // Helper: check user is admin
+    function isAdmin() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper: check authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: check field not empty string
     function isNotEmpty(field) {
-      return request.resource.data[field] is string && 
+      return request.resource.data[field] is string &&
              request.resource.data[field].size() > 0;
     }
-    
-    // Users collection
+
+    // ── USERS ──
     match /users/{userId} {
-      // User bisa read data sendiri, admin bisa read semua
-      allow read: if request.auth != null && 
-                    (request.auth.uid == userId || 
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // User bisa write data sendiri, admin bisa write semua
-      allow write: if request.auth != null && 
-                     (request.auth.uid == userId || 
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuth() && (request.auth.uid == userId || isAdmin());
     }
-    
-    // Submissions collection
+
+    // ── SUBMISSIONS ──
     match /submissions/{submissionId} {
-      // Semua authenticated user bisa read
-      allow read: if request.auth != null;
-      
-      // User bisa create submission dengan VALIDASI LENGKAP
-      allow create: if request.auth != null && 
+      allow read: if isAuth();
+      allow create: if isAuth() &&
                       request.resource.data.userId == request.auth.uid &&
-                      // Required fields validation
                       isNotEmpty('title') &&
                       isNotEmpty('artist') &&
                       isNotEmpty('userEmail') &&
@@ -41,30 +44,50 @@ service cloud.firestore {
                       isNotEmpty('spotifyUrl') &&
                       isNotEmpty('appleMusicUrl') &&
                       isNotEmpty('releaseDate') &&
-                      // Status must be pending
                       request.resource.data.status == 'pending' &&
-                      // Tracks must be array with at least 1 item
                       request.resource.data.tracks is int &&
-                      request.resource.data.tracks > 0 &&
-                      request.resource.data.trackDetails is list &&
-                      request.resource.data.trackDetails.size() > 0;
-      
-      // User bisa update submission mereka sendiri, admin bisa update semua
-      allow update: if request.auth != null && 
-                      (resource.data.userId == request.auth.uid || 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // User bisa delete submission mereka sendiri, admin bisa delete semua
-      allow delete: if request.auth != null && 
-                      (resource.data.userId == request.auth.uid || 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+                      request.resource.data.tracks > 0;
+      allow update: if isAuth() &&
+                      (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuth() &&
+                      (resource.data.userId == request.auth.uid || isAdmin());
     }
+
+    // ── NOTIFICATIONS ──
+    // Users can read/update their own, admin can write all
+    match /notifications/{notifId} {
+      allow read: if isAuth() &&
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+                      (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ── PRESAVES ──
+    // Public create (fans don't need to login), auth read
+    match /presaves/{presaveId} {
+      allow read: if isAuth();
+      allow create: if true;
+    }
+
+    // ── ROYALTIES ──
+    // Users read their own, admin write all
+    match /royalties/{royaltyId} {
+      allow read: if isAuth() &&
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── ROYALTY UPLOADS (history log) ──
+    match /royaltyUploads/{uploadId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
   }
 }
-
-// ── TAMBAHKAN INI ke dalam rules (sebelum closing brace terakhir) ──
-// Presaves collection — public, fans tidak perlu login
-// match /presaves/{presaveId} {
-//   allow read: if request.auth != null;
-//   allow create: if true;
-// }

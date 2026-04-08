@@ -1,97 +1,23 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { buildApprovalEmail } from '@/lib/email-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { userEmail, title, artist, releaseDate } = body
+    const { userEmail, title, artist, releaseDate, coverImage, format, genre } = await request.json()
 
     const data = await resend.emails.send({
       from: 'Afterglow Music <releases@mamangstudio.web.id>',
       to: [userEmail],
-      subject: `✓ Release Approved: ${title}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; background: #ecf0f1; margin: 0; padding: 0; }
-              .wrapper { max-width: 650px; margin: 40px auto; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-              .header { background: #000; padding: 40px 30px; text-align: center; border-bottom: 4px solid #27ae60; }
-              .logo { font-size: 32px; font-weight: 700; color: #fff; letter-spacing: 1px; margin-bottom: 8px; }
-              .tagline { color: #bdc3c7; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; }
-              .banner { background: #27ae60; color: white; padding: 15px 30px; text-align: center; font-weight: 600; font-size: 14px; }
-              .content { padding: 40px 30px; }
-              .message { background: #d4edda; border-left: 4px solid #27ae60; padding: 25px; margin: 30px 0; font-size: 15px; line-height: 1.8; color: #155724; }
-              .title { font-size: 22px; font-weight: 700; color: #000; margin-bottom: 8px; }
-              .artist { font-size: 16px; color: #7f8c8d; margin-bottom: 25px; }
-              .info-box { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 20px; margin: 20px 0; }
-              .footer { background: #34495e; color: #bdc3c7; padding: 30px; text-align: center; font-size: 12px; }
-              .footer-logo { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
-            </style>
-          </head>
-          <body>
-            <div class="wrapper">
-              <div class="header">
-                <div class="logo">AFTERGLOW MUSIC</div>
-                <div class="tagline">Digital Distribution</div>
-              </div>
-              
-              <div class="banner">✓ RELEASE APPROVED</div>
-              
-              <div class="content">
-                <h2 style="font-size: 20px; color: #27ae60; margin-bottom: 20px;">Congratulations!</h2>
-                
-                <div class="message">
-                  <p style="margin-bottom: 15px;"><strong>Hi ${artist},</strong></p>
-                  <p style="margin-bottom: 15px;">
-                    Great news! Your release has been approved and is now being processed for distribution to all major streaming platforms.
-                  </p>
-                  <p>Your music will be live on Spotify, Apple Music, Amazon Music, YouTube Music, and 17+ stores on your scheduled release date.</p>
-                </div>
-
-                <div class="title">${title}</div>
-                <div class="artist">${artist}</div>
-
-                <div class="info-box">
-                  <p style="margin: 10px 0;"><strong>Release Date:</strong> ${releaseDate || 'TBD'}</p>
-                  <p style="margin: 10px 0;"><strong>Distribution:</strong> Worldwide - All Major Platforms</p>
-                  <p style="margin: 10px 0;"><strong>Status:</strong> <span style="color: #27ae60; font-weight: 600;">Approved & Processing</span></p>
-                </div>
-
-                <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 20px; margin: 25px 0; border-radius: 4px;">
-                  <h3 style="color: #856404; font-size: 15px; margin-bottom: 12px;">📋 Next Steps</h3>
-                  <ul style="margin-left: 20px; color: #856404;">
-                    <li style="margin: 8px 0;">Your release is being uploaded to all platforms</li>
-                    <li style="margin: 8px 0;">You'll receive confirmation once it goes live</li>
-                    <li style="margin: 8px 0;">Track your release performance in the dashboard</li>
-                  </ul>
-                </div>
-
-                <p style="margin-top: 30px; font-size: 14px; color: #7f8c8d;">
-                  Thank you for choosing Afterglow Music for your distribution needs!
-                </p>
-              </div>
-
-              <div class="footer">
-                <div class="footer-logo">AFTERGLOW MUSIC</div>
-                <div>Digital Music Distribution & Rights Management<br>mamangstudio.web.id</div>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
+      subject: `🎉 "${title}" has been approved for distribution!`,
+      html: buildApprovalEmail(artist, title, releaseDate || 'TBD', coverImage, format, genre),
     })
 
     return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('Error sending approval email:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to send email' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to send email' }, { status: 500 })
   }
 }

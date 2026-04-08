@@ -1,247 +1,78 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { NextResponse } from 'next/server'
+import { emailWrapper, detailsTable, ctaButton, messageBox, DASHBOARD_URL } from '@/lib/email-template'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { releaseTitle, artist, userEmail, adminEmail, changes } = body
+    const { releaseTitle, artist, userEmail, changes } = await request.json()
 
-    // Email to User
+    // Email to artist
+    const userContent = `
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:14px 18px;margin-bottom:24px;text-align:center;">
+        <span style="color:#a5b4fc;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">↑ Release Updated</span>
+      </div>
+      ${messageBox(
+        `<strong style="color:rgba(255,255,255,0.9);">Hi ${artist},</strong><br/><br/>
+        Your release has been successfully updated. Our team will review the changes and you'll receive a notification once the review is complete.`,
+        '#818cf8', 'rgba(99,102,241,0.07)', 'rgba(99,102,241,0.2)'
+      )}
+      ${detailsTable([
+        { label: 'Release', value: releaseTitle },
+        { label: 'Artist', value: artist },
+        { label: 'Status', value: '<span style="color:#f59e0b;font-weight:700;">⏳ Under Review</span>' },
+      ])}
+      ${changes?.length > 0 ? `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <div style="color:rgba(255,255,255,0.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Changes Made</div>
+          ${changes.map((c: string) => `<div style="color:rgba(255,255,255,0.65);font-size:13px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">• ${c}</div>`).join('')}
+        </div>
+      ` : ''}
+      <div style="text-align:center;">
+        ${ctaButton('View Your Release →', `${DASHBOARD_URL}/dashboard`)}
+      </div>
+    `
+
     await resend.emails.send({
-      from: 'Afterglow Music <noreply@mamangstudio.web.id>',
-      to: userEmail,
-      subject: `Release Update Confirmation - ${releaseTitle}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 0;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                  
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 40px 40px 30px 40px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 300; letter-spacing: 2px;">
-                        AFTERGLOW MUSIC
-                      </h1>
-                      <p style="margin: 8px 0 0 0; color: #cccccc; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;">
-                        Digital Distribution Services
-                      </p>
-                    </td>
-                  </tr>
-
-                  <!-- Content -->
-                  <tr>
-                    <td style="padding: 40px;">
-                      <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 22px; font-weight: 600;">
-                        Release Update Confirmation
-                      </h2>
-                      
-                      <p style="margin: 0 0 25px 0; color: #4a4a4a; font-size: 15px; line-height: 1.6;">
-                        Your release has been successfully updated in our system.
-                      </p>
-
-                      <!-- Release Info Box -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #3182ce; margin: 0 0 30px 0;">
-                        <tr>
-                          <td style="padding: 20px;">
-                            <p style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 18px; font-weight: 600;">
-                              ${releaseTitle}
-                            </p>
-                            <p style="margin: 0; color: #6c757d; font-size: 14px;">
-                              by ${artist}
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <!-- Changes Section -->
-                      <div style="margin: 0 0 30px 0;">
-                        <p style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">
-                          Updates Made:
-                        </p>
-                        <ul style="margin: 0; padding-left: 20px; color: #4a4a4a; font-size: 14px; line-height: 1.8;">
-                          ${changes.map((change: string) => `<li>${change}</li>`).join('')}
-                        </ul>
-                      </div>
-
-                      <!-- Info Box -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e8f4f8; border-radius: 6px; margin: 0 0 30px 0;">
-                        <tr>
-                          <td style="padding: 16px 20px;">
-                            <p style="margin: 0; color: #0c5460; font-size: 13px; line-height: 1.6;">
-                              <strong>Note:</strong> Your updated release will be reviewed by our team. You will receive a notification once the review is complete.
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 14px; line-height: 1.6;">
-                        If you have any questions or need assistance, please don't hesitate to contact our support team.
-                      </p>
-
-                      <p style="margin: 0; color: #4a4a4a; font-size: 14px; line-height: 1.6;">
-                        Best regards,<br>
-                        <strong>Afterglow Music Team</strong>
-                      </p>
-                    </td>
-                  </tr>
-
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f8f9fa; padding: 30px 40px; border-top: 1px solid #e9ecef;">
-                      <p style="margin: 0 0 8px 0; color: #6c757d; font-size: 12px; text-align: center;">
-                        © ${new Date().getFullYear()} Afterglow Music. All rights reserved.
-                      </p>
-                      <p style="margin: 0; color: #6c757d; font-size: 12px; text-align: center;">
-                        <a href="https://mamangstudio.web.id" style="color: #3182ce; text-decoration: none;">mamangstudio.web.id</a>
-                      </p>
-                    </td>
-                  </tr>
-
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-        </html>
-      `,
+      from: 'Afterglow Music <releases@mamangstudio.web.id>',
+      to: [userEmail],
+      subject: `✓ Release updated: "${releaseTitle}"`,
+      html: emailWrapper(userContent),
     })
 
-    // Email to Admin
+    // Email to admin
+    const adminContent = `
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px 18px;margin-bottom:24px;text-align:center;">
+        <span style="color:#f59e0b;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">⚠️ Release Edited — Review Required</span>
+      </div>
+      ${detailsTable([
+        { label: 'Release', value: releaseTitle },
+        { label: 'Artist', value: artist },
+        { label: 'Submitted by', value: userEmail },
+        { label: 'Action', value: '<span style="color:#f59e0b;font-weight:700;">Review required</span>' },
+      ])}
+      ${changes?.length > 0 ? `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <div style="color:rgba(255,255,255,0.3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Changes</div>
+          ${changes.map((c: string) => `<div style="color:rgba(255,255,255,0.65);font-size:13px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">• ${c}</div>`).join('')}
+        </div>
+      ` : ''}
+      <div style="text-align:center;">
+        ${ctaButton('Review in Admin Panel →', `${DASHBOARD_URL}/admin`)}
+      </div>
+    `
+
     await resend.emails.send({
-      from: 'Afterglow Music System <noreply@mamangstudio.web.id>',
-      to: process.env.RECIPIENT_EMAIL || adminEmail,
-      subject: `[ADMIN] Release Updated - ${releaseTitle}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 0;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                  
-                  <!-- Header -->
-                  <tr>
-                    <td style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 40px 40px 30px 40px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 300; letter-spacing: 2px;">
-                        AFTERGLOW MUSIC
-                      </h1>
-                      <p style="margin: 8px 0 0 0; color: #cccccc; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;">
-                        Admin Notification System
-                      </p>
-                    </td>
-                  </tr>
-
-                  <!-- Content -->
-                  <tr>
-                    <td style="padding: 40px;">
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border-left: 4px solid #ffc107; margin: 0 0 25px 0;">
-                        <tr>
-                          <td style="padding: 16px 20px;">
-                            <p style="margin: 0; color: #856404; font-size: 13px; font-weight: 600;">
-                              ⚠️ ADMIN ALERT: Release Updated
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 22px; font-weight: 600;">
-                        Release Update Notification
-                      </h2>
-                      
-                      <p style="margin: 0 0 25px 0; color: #4a4a4a; font-size: 15px; line-height: 1.6;">
-                        A user has updated their release submission.
-                      </p>
-
-                      <!-- Release Info Box -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #3182ce; margin: 0 0 25px 0;">
-                        <tr>
-                          <td style="padding: 20px;">
-                            <p style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 18px; font-weight: 600;">
-                              ${releaseTitle}
-                            </p>
-                            <p style="margin: 0 0 12px 0; color: #6c757d; font-size: 14px;">
-                              by ${artist}
-                            </p>
-                            <p style="margin: 0; color: #6c757d; font-size: 13px;">
-                              <strong>User:</strong> ${userEmail}
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <!-- Changes Section -->
-                      <div style="margin: 0 0 30px 0;">
-                        <p style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">
-                          Changes Made:
-                        </p>
-                        <ul style="margin: 0; padding-left: 20px; color: #4a4a4a; font-size: 14px; line-height: 1.8;">
-                          ${changes.map((change: string) => `<li>${change}</li>`).join('')}
-                        </ul>
-                      </div>
-
-                      <!-- Action Required -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e8f4f8; border-radius: 6px; margin: 0 0 25px 0;">
-                        <tr>
-                          <td style="padding: 16px 20px;">
-                            <p style="margin: 0; color: #0c5460; font-size: 13px; line-height: 1.6;">
-                              <strong>Action Required:</strong> Please review the updated release in the admin dashboard.
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <p style="margin: 0; color: #4a4a4a; font-size: 14px; line-height: 1.6;">
-                        <strong>Timestamp:</strong> ${new Date().toLocaleString('en-US', { 
-                          dateStyle: 'full', 
-                          timeStyle: 'long',
-                          timeZone: 'Asia/Jakarta'
-                        })}
-                      </p>
-                    </td>
-                  </tr>
-
-                  <!-- Footer -->
-                  <tr>
-                    <td style="background-color: #f8f9fa; padding: 30px 40px; border-top: 1px solid #e9ecef;">
-                      <p style="margin: 0 0 8px 0; color: #6c757d; font-size: 12px; text-align: center;">
-                        © ${new Date().getFullYear()} Afterglow Music. All rights reserved.
-                      </p>
-                      <p style="margin: 0; color: #6c757d; font-size: 12px; text-align: center;">
-                        <a href="https://mamangstudio.web.id" style="color: #3182ce; text-decoration: none;">mamangstudio.web.id</a>
-                      </p>
-                    </td>
-                  </tr>
-
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-        </html>
-      `,
+      from: 'Afterglow Music <releases@mamangstudio.web.id>',
+      to: [process.env.RECIPIENT_EMAIL || 'admin@afterglowmusic.com'],
+      subject: `[Edit] ${releaseTitle} — ${artist}`,
+      html: emailWrapper(adminContent),
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error sending edit notification:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to send notification' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to send email' }, { status: 500 })
   }
 }

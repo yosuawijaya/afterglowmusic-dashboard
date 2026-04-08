@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import AvatarUpload from '@/app/components/AvatarUpload'
+import NotificationBell from '@/app/components/NotificationBell'
+import OnboardingModal from '@/app/components/OnboardingModal'
+import EditUsername from '@/app/components/EditUsername'
 
 interface Release {
   id: number
@@ -56,6 +59,9 @@ export default function Dashboard() {
   }>>([])
   const [releases, setReleases] = useState<Release[]>([])
   const [submissions, setSubmissions] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [newRelease, setNewRelease] = useState({
     title: '',
     artist: '',
@@ -77,6 +83,18 @@ export default function Dashboard() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [releaseToDelete, setReleaseToDelete] = useState<any>(null)
   const [deleteReason, setDeleteReason] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const ITEMS_PER_PAGE = 12
+  const [currentPage, setCurrentPage] = useState(1)
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 60)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
   
   const genres: { [key: string]: string[] } = {
     'Alternative': ['Alternative Rock', 'Indie Rock', 'Grunge', 'Britpop', 'Post-Punk'],
@@ -135,67 +153,52 @@ export default function Dashboard() {
 
   const handleAudioDrop = (e: React.DragEvent) => {
     e.preventDefault()
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'))
-    if (files.length > 0) {
-      setAudioFiles(prev => [...prev, ...files])
-      // Auto-create tracks from files
-      const currentYear = new Date().getFullYear()
-      const newTracks = files.map(file => ({
-        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-        artist: newRelease.artist || '',
-        file,
-        uploadProgress: 0,
-        featuring: '',
-        composer: '',
-        lyricist: '',
-        producer: '',
-        arranger: '',
-        recordingStudio: '',
-        mixingEngineer: '',
-        masteringEngineer: '',
-        leadVocals: '',
-        backgroundVocals: '',
-        musicians: '',
-        isrc: '',
-        pLine: `℗ ${currentYear} Afterglow Music`,
-        cLine: `© ${currentYear} Afterglow Music`
-      }))
-      setTracks(prev => [...prev, ...newTracks])
-    } else {
-      alert('Please upload audio files (MP3, WAV, FLAC)')
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.wav'))
+    if (files.length === 0) {
+      alert('Only WAV files are accepted. Please upload WAV format audio.')
+      return
     }
+    setAudioFiles(prev => [...prev, ...files])
+    const currentYear = new Date().getFullYear()
+    const newTracks = files.map(file => ({
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      artist: newRelease.artist || '',
+      file,
+      uploadProgress: 0,
+      featuring: '', composer: '', lyricist: '', producer: '',
+      arranger: '', recordingStudio: '', mixingEngineer: '', masteringEngineer: '',
+      leadVocals: '', backgroundVocals: '', musicians: '', isrc: '',
+      pLine: `℗ ${currentYear} Afterglow Music`,
+      cLine: `© ${currentYear} Afterglow Music`
+    }))
+    setTracks(prev => [...prev, ...newTracks])
   }
 
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('audio/'))
-    if (files.length > 0) {
-      setAudioFiles(prev => [...prev, ...files])
-      // Auto-create tracks from files
-      const currentYear = new Date().getFullYear()
-      const newTracks = files.map(file => ({
-        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-        artist: newRelease.artist || '',
-        file,
-        uploadProgress: 0,
-        featuring: '',
-        composer: '',
-        lyricist: '',
-        producer: '',
-        arranger: '',
-        recordingStudio: '',
-        mixingEngineer: '',
-        masteringEngineer: '',
-        leadVocals: '',
-        backgroundVocals: '',
-        musicians: '',
-        isrc: '',
-        pLine: `℗ ${currentYear} Afterglow Music`,
-        cLine: `© ${currentYear} Afterglow Music`
-      }))
-      setTracks(prev => [...prev, ...newTracks])
-    } else {
-      alert('Please upload audio files (MP3, WAV, FLAC)')
+    const allFiles = Array.from(e.target.files || [])
+    const wavFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.wav'))
+    const rejected = allFiles.length - wavFiles.length
+
+    if (rejected > 0) {
+      alert(`${rejected} file(s) rejected — only WAV format is accepted.`)
     }
+    if (wavFiles.length === 0) return
+
+    const files = wavFiles
+    setAudioFiles(prev => [...prev, ...files])
+    const currentYear = new Date().getFullYear()
+    const newTracks = files.map(file => ({
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      artist: newRelease.artist || '',
+      file,
+      uploadProgress: 0,
+      featuring: '', composer: '', lyricist: '', producer: '',
+      arranger: '', recordingStudio: '', mixingEngineer: '', masteringEngineer: '',
+      leadVocals: '', backgroundVocals: '', musicians: '', isrc: '',
+      pLine: `℗ ${currentYear} Afterglow Music`,
+      cLine: `© ${currentYear} Afterglow Music`
+    }))
+    setTracks(prev => [...prev, ...newTracks])
   }
 
   const removeAudioFile = (index: number) => {
@@ -275,6 +278,9 @@ export default function Dashboard() {
     } else {
       setUsername(storedUsername || 'User')
       
+      // Show onboarding for new users
+      const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding')
+      if (!hasSeenOnboarding) setShowOnboarding(true)      
       // Load photoURL realtime dari Firestore
       const uid = localStorage.getItem('userId') || ''
       setUserId(uid)
@@ -315,6 +321,36 @@ export default function Dashboard() {
           
           console.log('Total submissions loaded:', submissionsData.length)
           setSubmissions(submissionsData)
+          setLoadingSubmissions(false)
+
+          // Auto-create in-app notifications for rejected releases
+          const uid2 = localStorage.getItem('userId') || ''
+          if (uid2) {
+            ;(async () => {
+              try {
+                const { getDocs: gd, query: q2, collection: col, where: wh, addDoc: ad, serverTimestamp: st2 } = await import('firebase/firestore')
+                for (const sub of submissionsData) {
+                  if (sub.status === 'rejected') {
+                    const existing = await gd(q2(col(db, 'notifications'), wh('userId', '==', uid2), wh('releaseId', '==', sub.id)))
+                    if (existing.empty) {
+                      await ad(col(db, 'notifications'), {
+                        userId: uid2,
+                        releaseId: sub.id,
+                        title: `"${sub.title}" needs revision`,
+                        message: sub.rejectionReason || 'Your release requires changes. Check your email for details.',
+                        type: 'rejected',
+                        read: false,
+                        createdAt: st2(),
+                      })
+                    }
+                  }
+                }
+              } catch (e) {
+                // Silently fail if permissions not set yet
+                console.warn('Notification auto-create skipped:', e)
+              }
+            })()
+          }
         }, (error) => {
           console.error('Error loading submissions:', error)
         })
@@ -645,12 +681,30 @@ export default function Dashboard() {
     }
   }
 
+  const filteredSubmissions = submissions.filter(s => {
+    const matchSearch = !searchQuery || 
+      s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.artist?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchStatus = statusFilter === 'all' || s.status === statusFilter
+    return matchSearch && matchStatus
+  })
+
+  const pendingCount = submissions.filter(s => s.status === 'pending').length
+  const approvedCount = submissions.filter(s => s.status === 'approved').length
+
+  const totalPages = Math.ceil(filteredSubmissions.length / ITEMS_PER_PAGE)
+  const paginatedSubmissions = filteredSubmissions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
   return (
     <div className="dashboard">
-      <div className="sidebar">
+      {/* Mobile overlay */}
+      {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />}
+
+      {/* ===== SIDEBAR ===== */}
+      <div className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="logo">Afterglow Music</div>
 
-        <button className="btn-new-release" onClick={() => setShowCreateForm(true)}>
+        <button className="btn-new-release" onClick={() => { setEditingRelease(null); router.push('/new-release'); }}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
           </svg>
@@ -665,7 +719,7 @@ export default function Dashboard() {
           <span>All Releases</span>
           {submissions.length > 0 && <span className="nav-badge">{submissions.length}</span>}
         </div>
-        <div className="nav-item" onClick={() => router.push('/drafts')}>
+        <div className="nav-item" onClick={() => { router.push('/drafts'); setSidebarOpen(false); }}>
           <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
             <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
@@ -674,7 +728,7 @@ export default function Dashboard() {
         </div>
 
         <div className="nav-section-label">Insights</div>
-        <div className="nav-item" onClick={() => router.push('/analytics')}>
+        <div className="nav-item" onClick={() => { router.push('/analytics'); setSidebarOpen(false); }}>
           <svg className="nav-icon" viewBox="0 0 24 24" fill="currentColor">
             <rect x="2" y="13" width="4" height="9" rx="1"/>
             <rect x="9" y="8" width="4" height="14" rx="1"/>
@@ -682,7 +736,14 @@ export default function Dashboard() {
           </svg>
           <span>Analytics</span>
         </div>
-        <div className="nav-item" onClick={() => router.push('/promotion')}>
+        <div className="nav-item" onClick={() => { router.push('/royalties'); setSidebarOpen(false); }}>
+          <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/>
+          </svg>
+          <span>Royalties</span>
+        </div>
+        <div className="nav-item" onClick={() => { router.push('/promotion'); setSidebarOpen(false); }}>
           <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clipRule="evenodd"/>
           </svg>
@@ -690,128 +751,322 @@ export default function Dashboard() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="nav-item" onClick={handleLogout} style={{ color: 'rgba(248,113,113,0.7)' }}>
-            <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.7 }}>
-              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd"/>
-            </svg>
-            <span>Logout</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px' }}>
+            <AvatarUpload userId={userId} username={username} photoURL={photoURL} size={32} onUpdate={setPhotoURL} />
+            <EditUsername userId={userId} username={username} role="Artist" onUpdate={setUsername} />
           </div>
         </div>
       </div>
 
+      {/* ===== MAIN CONTENT ===== */}
       <div className="main-content">
-        <div className="header">
-          <div className="header-left">
-            <h1>All Releases</h1>
-            <p>Manage and track your music catalog</p>
+
+        {/* ===== MOBILE TOP BAR ===== */}
+        <div className="mobile-topbar" style={{ display: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img src="/logos/logo-afterglowmusic.png" alt="Afterglow Music" style={{ height: '28px', objectFit: 'contain' }} />
           </div>
-          <div className="user-info">
-            <AvatarUpload userId={userId} username={username} photoURL={photoURL} size={34} onUpdate={setPhotoURL} />
-            <span>{username}</span>
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <NotificationBell userId={userId} />
+            <AvatarUpload userId={userId} username={username} photoURL={photoURL} size={30} onUpdate={setPhotoURL} />
           </div>
         </div>
 
+        {/* Sticky compact header — appears on scroll */}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: '252px',
+          right: 0,
+          height: '52px',
+          background: 'rgba(5,5,13,0.92)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 36px',
+          zIndex: 90,
+          opacity: scrolled ? 1 : 0,
+          transform: scrolled ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'opacity 0.25s ease, transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents: scrolled ? 'auto' : 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>
+              {username}'s Studio
+            </span>
+            {pendingCount > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '3px 9px', borderRadius: '20px' }}>
+                {pendingCount} pending
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <NotificationBell userId={userId} />
+            <button className="btn-primary" onClick={() => router.push('/new-release')} style={{ padding: '7px 16px', fontSize: '12px' }}>
+              + New Release
+            </button>
+            <button className="btn-logout" onClick={handleLogout} style={{ padding: '6px 12px', fontSize: '12px' }}>Sign Out</button>
+          </div>
+        </div>
+        {/* ===== HERO HEADER ===== */}
+        <div className="mobile-hero" style={{
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(236,72,153,0.05) 50%, transparent 100%)',
+          border: '1px solid rgba(99,102,241,0.12)',
+          borderRadius: '20px',
+          padding: '28px 32px',
+          marginBottom: '24px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-60px', left: '25%', width: '220px', height: '220px', background: 'radial-gradient(circle, rgba(236,72,153,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.7), rgba(236,72,153,0.4), transparent)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+            <div>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: 'rgba(165,180,252,0.6)', textTransform: 'uppercase', letterSpacing: '2.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#a5b4fc' }} />
+                Artist Portal
+              </div>
+              <h1 className="page-title" style={{ marginBottom: '8px' }}>
+                {submissions.length > 0 ? `${username}'s Studio` : `Welcome, ${username}`}
+              </h1>
+              <p className="page-subtitle">
+                {submissions.length > 0
+                  ? `${submissions.length} release${submissions.length > 1 ? 's' : ''} in your catalog · ${approvedCount} live worldwide · ${pendingCount} in review`
+                  : 'Your music, distributed worldwide. Submit your first release to get started.'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/></svg>
+              </button>
+              <NotificationBell userId={userId} />
+              <button className="btn-logout" onClick={handleLogout}>Sign Out</button>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== COMMAND CENTER — Today's Actions ===== */}
+        {(pendingCount > 0 || submissions.some(s => s.status === 'rejected') || submissions.length === 0) && (
+          <div style={{ marginBottom: '28px' }}>
+            <div className="section-heading">Action Required</div>
+            <div className="action-items">
+              {submissions.length === 0 && (
+                <div className="action-item" style={{ background: 'rgba(99,102,241,0.07)', borderColor: 'rgba(99,102,241,0.2)', color: '#a5b4fc', animationDelay: '0.05s' }}
+                  onClick={() => router.push('/new-release')}>
+                  <div className="action-item-icon" style={{ background: 'rgba(99,102,241,0.15)' }}>
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="#a5b4fc"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/></svg>
+                  </div>
+                  <div className="action-item-text">
+                    <div className="action-item-title">Submit your first release</div>
+                    <div className="action-item-desc">Get your music on Spotify, Apple Music, and 120+ platforms</div>
+                  </div>
+                  <span className="action-item-arrow">→</span>
+                </div>
+              )}
+              {pendingCount > 0 && (
+                <div className="action-item" style={{ background: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.2)', color: '#f59e0b', animationDelay: '0.1s' }}>
+                  <div className="action-item-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="#f59e0b"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/></svg>
+                  </div>
+                  <div className="action-item-text">
+                    <div className="action-item-title">{pendingCount} release{pendingCount > 1 ? 's' : ''} under review</div>
+                    <div className="action-item-desc">Our team is reviewing your submission — typically 2–3 business days</div>
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)', padding: '4px 10px', borderRadius: '20px' }}>In Progress</div>
+                </div>
+              )}
+              {submissions.filter(s => s.status === 'rejected').map(s => (
+                <div key={s.id} className="action-item" style={{ background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.2)', color: '#f87171', animationDelay: '0.15s' }}
+                  onClick={() => router.push(`/new-release?edit=${s.id}`)}>
+                  <div className="action-item-icon" style={{ background: 'rgba(239,68,68,0.12)' }}>
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="#f87171"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                  </div>
+                  <div className="action-item-text">
+                    <div className="action-item-title">"{s.title}" needs revision</div>
+                    <div className="action-item-desc">{s.rejectionReason || 'Check your email for details and resubmit'}</div>
+                  </div>
+                  <span className="action-item-arrow">→</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats */}
         <div className="stats">
-          <div className="stat-card">
-            <div className="stat-card-icon" style={{ background: 'rgba(99,102,241,0.15)' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="#818cf8">
-                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
-              </svg>
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(10,10,21,1) 60%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div className="stat-card-icon" style={{ background: 'rgba(99,102,241,0.2)', width: '44px', height: '44px', borderRadius: '12px' }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="#a5b4fc">
+                  <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#a5b4fc', background: 'rgba(99,102,241,0.15)', padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(99,102,241,0.2)' }}>CATALOG</span>
             </div>
-            <h3>Total Releases</h3>
-            <div className="value">{submissions.length}</div>
-            <div className="trend">↑ Active catalog</div>
+            <div className="value" style={{ fontSize: '40px', marginBottom: '4px' }}>{submissions.length}</div>
+            <h3 style={{ marginBottom: '6px' }}>Total Releases</h3>
+            <div className="trend">{approvedCount} live · {pendingCount} pending</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-card-icon" style={{ background: 'rgba(52,211,153,0.12)' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="#34d399">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
-              </svg>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(10,10,21,1) 60%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div className="stat-card-icon" style={{ background: 'rgba(16,185,129,0.18)', width: '44px', height: '44px', borderRadius: '12px' }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="#34d399">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#34d399', background: 'rgba(16,185,129,0.12)', padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(16,185,129,0.2)' }}>TRACKS</span>
             </div>
-            <h3>Total Tracks</h3>
-            <div className="value">{submissions.reduce((sum, s) => sum + (s.tracks || 0), 0)}</div>
-            <div className="trend">↑ All formats</div>
+            <div className="value" style={{ fontSize: '40px', marginBottom: '4px' }}>{submissions.reduce((sum, s) => sum + (s.tracks || 0), 0)}</div>
+            <h3 style={{ marginBottom: '6px' }}>Total Tracks</h3>
+            <div className="trend">All formats combined</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-card-icon" style={{ background: 'rgba(251,191,36,0.12)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="2" y1="12" x2="22" y2="12"/>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(10,10,21,1) 60%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div className="stat-card-icon" style={{ background: 'rgba(245,158,11,0.18)', width: '44px', height: '44px', borderRadius: '12px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#fbbf24', background: 'rgba(245,158,11,0.12)', padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(245,158,11,0.2)' }}>GLOBAL</span>
             </div>
-            <h3>Territories</h3>
-            <div className="value">240</div>
-            <div className="trend">↑ Worldwide</div>
+            <div className="value" style={{ fontSize: '40px', marginBottom: '4px' }}>240</div>
+            <h3 style={{ marginBottom: '6px' }}>Territories</h3>
+            <div className="trend">Worldwide distribution</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-card-icon" style={{ background: 'rgba(236,72,153,0.12)' }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="#ec4899">
-                <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
-              </svg>
+
+          <div className="stat-card" style={{ background: 'linear-gradient(135deg, rgba(236,72,153,0.1) 0%, rgba(10,10,21,1) 60%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div className="stat-card-icon" style={{ background: 'rgba(236,72,153,0.18)', width: '44px', height: '44px', borderRadius: '12px' }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="#f472b6">
+                  <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#f472b6', background: 'rgba(236,72,153,0.12)', padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(236,72,153,0.2)' }}>STORES</span>
             </div>
-            <h3>Stores</h3>
-            <div className="value">120+</div>
-            <div className="trend">↑ Platforms</div>
+            <div className="value" style={{ fontSize: '40px', marginBottom: '4px' }}>120+</div>
+            <h3 style={{ marginBottom: '6px' }}>Platforms</h3>
+            <div className="trend">Spotify, Apple, YouTube +</div>
           </div>
         </div>
 
+        {/* Search + Filter + View Toggle */}
         <div className="actions">
           <div className="search-wrapper">
             <svg className="search-icon" width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/>
             </svg>
-            <input type="text" className="search-box" placeholder="Search releases, artists..."/>
+            <input
+              type="text"
+              className="search-box"
+              placeholder="Search releases, artists..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <button className="filter-btn">
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd"/>
-            </svg>
-            Filter
-          </button>
-          <button className="btn-primary">Export</button>
+          <div className="view-toggle">
+            <button
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid view"
+            >
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+              </svg>
+            </button>
+            <button
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List view"
+            >
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Status Filter Pills */}
+        <div className="status-filters">
+          {(['all', 'pending', 'approved', 'rejected'] as const).map(s => (
+            <button
+              key={s}
+              className={`status-filter-btn ${statusFilter === s ? `active-${s}` : ''}`}
+              onClick={() => setStatusFilter(s)}
+            >
+              {s === 'all' ? `All (${submissions.length})` :
+               s === 'pending' ? `Pending (${pendingCount})` :
+               s === 'approved' ? `Live (${approvedCount})` :
+               `Rejected (${submissions.filter(x => x.status === 'rejected').length})`}
+            </button>
+          ))}
         </div>
 
         {showCreateForm && (
-          <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
+          <div className="modal-overlay" onClick={() => { setShowCreateForm(false); setEditingRelease(null); }}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>{editingRelease ? 'Edit Release' : 'One release: Audio Release, EP or Single'}</h2>
-                <button className="btn-close" onClick={() => {
-                  setShowCreateForm(false)
-                  setEditingRelease(null)
-                }}>
-                  ×
-                </button>
+                <div>
+                  <h2>{editingRelease ? `Editing: ${editingRelease.title}` : 'Submit New Release'}</h2>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
+                    {editingRelease ? 'Update your release information' : 'Single · EP · Album'}
+                  </p>
+                </div>
+                <button className="btn-close" onClick={() => { setShowCreateForm(false); setEditingRelease(null); }}>×</button>
               </div>
+
+              {/* Visual progress bar */}
+              {(() => {
+                const tabList = ['release','upload','tracks','price','territories','releasedate','promotion','submission']
+                const currentIdx = tabList.indexOf(activeTab)
+                const pct = Math.round(((currentIdx + 1) / tabList.length) * 100)
+                return (
+                  <div style={{ padding: '0 26px 0', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', paddingBottom: '6px' }}>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Step {currentIdx + 1} of {tabList.length}</span>
+                      <span style={{ fontSize: '11px', color: 'rgba(165,180,252,0.7)', fontWeight: 700 }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', marginBottom: '0', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #6366f1, #ec4899)', borderRadius: '3px', transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="tabs">
-                <div className={`tab ${activeTab === 'release' ? 'active' : ''}`} onClick={() => setActiveTab('release')}>
-                  Release information
-                </div>
-                <div className={`tab ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => setActiveTab('upload')}>
-                  Upload
-                </div>
-                <div className={`tab ${activeTab === 'tracks' ? 'active' : ''}`} onClick={() => setActiveTab('tracks')}>
-                  Tracks
-                </div>
-                <div className={`tab ${activeTab === 'price' ? 'active' : ''}`} onClick={() => setActiveTab('price')}>
-                  Price
-                </div>
-                <div className={`tab ${activeTab === 'territories' ? 'active' : ''}`} onClick={() => setActiveTab('territories')}>
-                  Territories
-                </div>
-                <div className={`tab ${activeTab === 'releasedate' ? 'active' : ''}`} onClick={() => setActiveTab('releasedate')}>
-                  Release date
-                </div>
-                <div className={`tab ${activeTab === 'promotion' ? 'active' : ''}`} onClick={() => setActiveTab('promotion')}>
-                  Promotion
-                </div>
-                <div className={`tab ${activeTab === 'submission' ? 'active' : ''}`} onClick={() => setActiveTab('submission')}>
-                  Submission
-                </div>
+                {[
+                  { id: 'release', label: 'Release Info', num: 1 },
+                  { id: 'upload', label: 'Upload', num: 2 },
+                  { id: 'tracks', label: 'Tracks', num: 3 },
+                  { id: 'price', label: 'Price', num: 4 },
+                  { id: 'territories', label: 'Territories', num: 5 },
+                  { id: 'releasedate', label: 'Release Date', num: 6 },
+                  { id: 'promotion', label: 'Promotion', num: 7 },
+                  { id: 'submission', label: 'Review', num: 8 },
+                ].map(t => {
+                  const tabList = ['release','upload','tracks','price','territories','releasedate','promotion','submission']
+                  const currentIdx = tabList.indexOf(activeTab)
+                  const tIdx = tabList.indexOf(t.id)
+                  const isDone = tIdx < currentIdx
+                  return (
+                    <div
+                      key={t.id}
+                      className={`tab ${activeTab === t.id ? 'active' : ''} ${isDone ? 'completed' : ''}`}
+                      onClick={() => setActiveTab(t.id)}
+                    >
+                      <span className="tab-step">{isDone ? '✓' : t.num}</span>
+                      {t.label}
+                    </div>
+                  )
+                })}
               </div>
-              <form onSubmit={handleCreateRelease} className="release-form">
+              <form onSubmit={handleCreateRelease} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                <div className="release-form" style={{ flex: 1 }}>
                 {activeTab === 'release' && (
                   <>
                     <div className="form-row">
@@ -1106,12 +1361,12 @@ export default function Dashboard() {
                         or click to browse
                       </p>
                       <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>
-                        MP3, WAV, FLAC • Max 200MB per file • Multiple files supported
+                        WAV only · Max 200MB per file · Multiple files supported
                       </p>
                       <input
                         id="audio-input"
                         type="file"
-                        accept="audio/*"
+                        accept="audio/wav,.wav"
                         multiple
                         onChange={handleAudioSelect}
                         style={{ display: 'none' }}
@@ -1665,180 +1920,324 @@ export default function Dashboard() {
                 )}
 
                 <div className="form-actions">
-                  {activeTab !== 'release' && (
-                    <button type="button" className="btn-secondary" onClick={goToPreviousTab} disabled={isUploading}>
-                      ← Previous
-                    </button>
-                  )}
-                  {activeTab !== 'submission' ? (
-                    <button type="button" className="btn-primary" onClick={goToNextTab} disabled={isUploading}>
-                      Next →
-                    </button>
-                  ) : (
-                    <button type="submit" className="btn-save" disabled={isUploading}>
-                      {isUploading ? 'Uploading...' : editingRelease ? 'Update Release' : 'Save & Submit'}
-                    </button>
-                  )}
+                  <div>
+                    {activeTab !== 'release' && (
+                      <button type="button" className="btn-secondary" onClick={goToPreviousTab} disabled={isUploading}>
+                        ← Back
+                      </button>
+                    )}
+                  </div>
+                  <div className="form-actions-right">
+                    {activeTab !== 'submission' ? (
+                      <button type="button" className="btn-save" onClick={goToNextTab} disabled={isUploading}>
+                        Continue →
+                      </button>
+                    ) : (
+                      <button type="submit" className="btn-save" disabled={isUploading}>
+                        {isUploading ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3"/>
+                              <path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+                            </svg>
+                            Uploading...
+                          </span>
+                        ) : editingRelease ? 'Update Release' : 'Submit Release'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                </div>{/* end release-form div */}
               </form>
             </div>
           </div>
         )}
 
-        <div className="releases-table">
-          {submissions.length === 0 ? (
-            <div className="empty-state">
-              <svg className="empty-state-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
-              </svg>
-              <h3>No Releases Yet</h3>
-              <p>Click "One release" to submit your first release</p>
+        {/* ===== ACTIVITY + UPCOMING SECTION ===== */}
+        {submissions.length > 0 && !searchQuery && statusFilter === 'all' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            {/* Recent Activity */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Recent Activity</span>
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                {submissions.slice(0, 5).map(s => {
+                  const date = s.submittedAt instanceof Date ? s.submittedAt : new Date(s.submittedAt)
+                  const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24))
+                  const timeStr = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : `${diff}d ago`
+                  const statusColor = s.status === 'approved' ? '#10b981' : s.status === 'rejected' ? '#f87171' : '#f59e0b'
+                  const statusLabel = s.status === 'approved' ? 'went live' : s.status === 'rejected' ? 'needs revision' : 'is under review'
+                  return (
+                    <div key={s.id} onClick={() => router.push(`/release/${s.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 18px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg,#1a1a2e,#16213e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
+                        {s.coverImage ? <img src={s.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(165,180,252,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5L21 3V16M9 18C9 19.1 7.66 20 6 20C4.34 20 3 19.1 3 18C3 16.9 4.34 16 6 16C7.66 16 9 16.9 9 18ZM21 16C21 17.1 19.66 18 18 18C16.34 18 15 17.1 15 16C15 14.9 16.34 14 18 14C19.66 14 21 14.9 21 16Z"/></svg>}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ color: statusColor }}>"{s.title}"</span> {statusLabel}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>{s.artist}</div>
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{timeStr}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          ) : (
-            submissions.map((submission) => (
-              <div 
-                key={submission.id} 
-                className="release-card"
-              >
-                <div 
-                  className="release-card-cover"
-                  onClick={() => router.push(`/release/${submission.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
+
+            {/* Upcoming Releases */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Upcoming Releases</span>
+              </div>
+              {(() => {
+                const upcoming = submissions.filter(s => {
+                  if (!s.releaseDate) return false
+                  const rd = new Date(s.releaseDate)
+                  return rd > new Date() && (s.status === 'approved' || s.status === 'pending')
+                }).sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime())
+                if (!upcoming.length) return (
+                  <div style={{ padding: '32px 18px', textAlign: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', margin: '0 auto 8px', opacity: 0.2 }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>No upcoming releases</p>
+                  </div>
+                )
+                return upcoming.slice(0, 4).map(s => {
+                  const rd = new Date(s.releaseDate)
+                  const daysLeft = Math.ceil((rd.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  return (
+                    <div key={s.id} onClick={() => router.push(`/release/${s.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 18px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg,#1a1a2e,#16213e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
+                        {s.coverImage ? <img src={s.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(165,180,252,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5L21 3V16M9 18C9 19.1 7.66 20 6 20C4.34 20 3 19.1 3 18C3 16.9 4.34 16 6 16C7.66 16 9 16.9 9 18ZM21 16C21 17.1 19.66 18 18 18C16.34 18 15 17.1 15 16C15 14.9 16.34 14 18 14C19.66 14 21 14.9 21 16Z"/></svg>}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>{rd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: '16px', fontWeight: 900, color: '#a5b4fc', letterSpacing: '-0.5px' }}>{daysLeft}</div>
+                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>days</div>
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Releases Grid / List */}
+        {/* Mobile: desktop-only banner */}
+        <div className="mobile-desktop-banner">
+          <div className="mobile-desktop-banner-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div className="mobile-desktop-banner-text">
+            <div className="mobile-desktop-banner-title">Submit releases on desktop</div>
+            <div className="mobile-desktop-banner-desc">Open afterglowmusic.vercel.app on your laptop or PC to submit new releases.</div>
+          </div>
+        </div>
+
+        {filteredSubmissions.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <span className="section-heading" style={{ marginBottom: 0 }}>Your Catalog</span>
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
+              {filteredSubmissions.length} release{filteredSubmissions.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+        <div className={viewMode === 'grid' ? 'releases-grid' : 'releases-list'} style={viewMode === 'grid' ? { gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' } : {}}>
+          {loadingSubmissions ? (
+            // Skeleton loading
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton-card" style={{ animationDelay: `${i * 0.08}s` }}>
+                <div className="skeleton-cover" />
+                <div style={{ padding: '14px 16px' }}>
+                  <div className="skeleton-line" style={{ width: '70%', marginBottom: '8px' }} />
+                  <div className="skeleton-line skeleton-line-sm" style={{ width: '45%', marginBottom: '14px' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div className="skeleton-line skeleton-line-sm" style={{ width: '28%' }} />
+                    <div className="skeleton-line skeleton-line-sm" style={{ width: '20%' }} />
+                    <div className="skeleton-line skeleton-line-sm" style={{ width: '25%' }} />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : filteredSubmissions.length === 0 ? (
+            <div className="empty-state" style={{ padding: '80px 40px' }}>
+              <div className="empty-state-visual">
+                <div className="empty-state-visual-ring" />
+                <div className="empty-state-visual-ring" />
+                <div className="empty-state-visual-ring" />
+                <div className="empty-state-visual-icon">
+                  <svg width="24" height="24" viewBox="0 0 20 20" fill="rgba(165,180,252,0.6)">
+                    <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+                  </svg>
+                </div>
+              </div>
+              <h3 style={{ fontSize: '24px', fontWeight: 900, letterSpacing: '-0.5px', marginBottom: '10px' }}>
+                {searchQuery || statusFilter !== 'all' ? 'No releases found' : 'Your catalog is empty'}
+              </h3>
+              <p style={{ fontSize: '14px', maxWidth: '380px', margin: '0 auto 28px', lineHeight: '1.7', color: 'rgba(240,240,255,0.35)' }}>
+                {searchQuery || statusFilter !== 'all'
+                  ? 'Try adjusting your search or filters'
+                  : 'Submit your first release and reach millions of listeners on Spotify, Apple Music, YouTube Music, and 120+ more platforms.'}
+              </p>
+              {!searchQuery && statusFilter === 'all' && (
+                <button className="btn-primary" style={{ padding: '12px 28px', fontSize: '14px' }} onClick={() => router.push('/new-release')}>
+                  Submit Your First Release →
+                </button>
+              )}
+            </div>
+          ) : viewMode === 'grid' ? (
+            paginatedSubmissions.map((submission) => (
+              <div key={submission.id} className="release-card">
+                <div className="release-card-cover" onClick={() => router.push(`/release/${submission.id}`)}>
                   {submission.coverImage ? (
-                    <img 
-                      src={submission.coverImage} 
-                      alt={submission.title}
-                    />
+                    <img src={submission.coverImage} alt={submission.title} />
                   ) : (
-                    <div className="release-card-cover-placeholder">🎵</div>
+                    <div className="release-card-cover-placeholder">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(165,180,252,0.25)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5L21 3V16M9 18C9 19.1046 7.65685 20 6 20C4.34315 20 3 19.1046 3 18C3 16.8954 4.34315 16 6 16C7.65685 16 9 16.8954 9 18ZM21 16C21 17.1046 19.6569 18 18 18C16.3431 18 15 17.1046 15 16C15 14.8954 16.3431 14 18 14C19.6569 14 21 14.8954 21 16Z"/></svg>
+                    </div>
                   )}
-                  <div 
+                  <div
                     className="release-card-status"
                     style={{
-                      background: submission.status === 'approved' ? 'rgba(52,211,153,0.9)' : 
-                                 submission.status === 'rejected' ? 'rgba(248,113,113,0.9)' : 
-                                 'rgba(251,191,36,0.9)',
-                      color: submission.status === 'pending' ? '#1a1a00' : 'white'
+                      background: submission.status === 'approved'
+                        ? 'rgba(16,185,129,0.9)'
+                        : submission.status === 'rejected'
+                        ? 'rgba(239,68,68,0.85)'
+                        : 'rgba(245,158,11,0.9)',
+                      color: 'white',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: submission.status === 'approved'
+                        ? '0 2px 12px rgba(16,185,129,0.4)'
+                        : submission.status === 'rejected'
+                        ? '0 2px 12px rgba(239,68,68,0.4)'
+                        : '0 2px 12px rgba(245,158,11,0.4)',
                     }}
                   >
-                    {submission.status === 'approved' ? '✓ Live' : 
-                     submission.status === 'rejected' ? '✗ Rejected' : 
-                     '⏱ Pending'}
+                    {submission.status === 'approved' ? '● Live'
+                     : submission.status === 'rejected' ? '✕ Rejected'
+                     : '◌ Pending'}
                   </div>
-                  <div className="release-card-play">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="white">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"/>
-                    </svg>
+                  {/* Hover overlay with actions */}
+                  <div className="release-card-overlay">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/new-release?edit=${submission.id}`); }}
+                      style={{ flex: 1, padding: '8px', background: 'rgba(99,102,241,0.85)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(8px)' }}
+                    >Edit</button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClick(submission); }}
+                      style={{ flex: 1, padding: '8px', background: 'rgba(239,68,68,0.8)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(8px)' }}
+                    >Delete</button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/release/${submission.id}`); }}
+                      style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(8px)' }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                    </button>
                   </div>
                 </div>
                 <div className="release-card-content">
-                  <div 
-                    className="release-card-title"
-                    onClick={() => router.push(`/release/${submission.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {submission.title}
-                  </div>
-                  <div className="release-card-artist">By {submission.artist}</div>
+                  <div className="release-card-title" onClick={() => router.push(`/release/${submission.id}`)}>{submission.title}</div>
+                  <div className="release-card-artist">{submission.artist}{submission.featuringArtists ? ` ft. ${submission.featuringArtists}` : ''}</div>
                   <div className="release-card-meta">
                     <div className="release-card-meta-item">
                       <div className="release-card-meta-label">Format</div>
-                      <div className="release-card-meta-value" style={{ textTransform: 'capitalize' }}>
-                        {submission.format}
-                      </div>
+                      <div className="release-card-meta-value">{submission.format}</div>
                     </div>
                     <div className="release-card-meta-item">
                       <div className="release-card-meta-label">Tracks</div>
-                      <div className="release-card-meta-value">
-                        {submission.tracks}
-                      </div>
+                      <div className="release-card-meta-value">{submission.tracks}</div>
                     </div>
                     <div className="release-card-meta-item">
                       <div className="release-card-meta-label">Genre</div>
-                      <div className="release-card-meta-value">
-                        {submission.genre}
-                      </div>
+                      <div className="release-card-meta-value" style={{ fontSize: '11px' }}>{submission.genre}</div>
                     </div>
                   </div>
-                  
-                  {/* Action Buttons */}
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    marginTop: '12px',
-                    paddingTop: '12px',
-                    borderTop: '1px solid rgba(255,255,255,0.06)'
-                  }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEditRelease(submission)
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px 10px',
-                        background: 'rgba(99,102,241,0.15)',
-                        color: '#818cf8',
-                        border: '1px solid rgba(99,102,241,0.2)',
-                        borderRadius: '7px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '5px',
-                        transition: 'all 0.2s',
-                        fontFamily: 'inherit'
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.25)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.15)' }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteClick(submission)
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px 10px',
-                        background: 'rgba(239,68,68,0.1)',
-                        color: '#f87171',
-                        border: '1px solid rgba(239,68,68,0.18)',
-                        borderRadius: '7px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '5px',
-                        transition: 'all 0.2s',
-                        fontFamily: 'inherit'
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                      Delete
-                    </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            paginatedSubmissions.map((submission) => (
+              <div key={submission.id} className="release-list-item">
+                <div className="release-list-cover" onClick={() => router.push(`/release/${submission.id}`)}>
+                  {submission.coverImage ? <img src={submission.coverImage} alt={submission.title} /> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(165,180,252,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5L21 3V16M9 18C9 19.1046 7.65685 20 6 20C4.34315 20 3 19.1046 3 18C3 16.8954 4.34315 16 6 16C7.65685 16 9 16.8954 9 18ZM21 16C21 17.1046 19.6569 18 18 18C16.3431 18 15 17.1046 15 16C15 14.8954 16.3431 14 18 14C19.6569 14 21 14.8954 21 16Z"/></svg>}
+                </div>
+                <div className="release-list-info" onClick={() => router.push(`/release/${submission.id}`)}>
+                  <div className="release-list-title">{submission.title}</div>
+                  <div className="release-list-artist">{submission.artist}</div>
+                </div>
+                <div className="release-list-meta">
+                  <div className="release-list-meta-item">
+                    <div className="release-list-meta-label">Format</div>
+                    <div className="release-list-meta-value">{submission.format}</div>
+                  </div>
+                  <div className="release-list-meta-item">
+                    <div className="release-list-meta-label">Tracks</div>
+                    <div className="release-list-meta-value">{submission.tracks}</div>
+                  </div>
+                  <div className="release-list-meta-item">
+                    <div className="release-list-meta-label">Status</div>
+                    <div style={{ marginTop: '2px' }}>
+                      <span className={`status-badge ${submission.status === 'approved' ? 'status-active' : submission.status === 'rejected' ? 'status-rejected' : 'status-pending'}`}>
+                        {submission.status === 'approved' ? 'Live' : submission.status === 'rejected' ? 'Rejected' : 'Pending'}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={() => router.push(`/new-release?edit=${submission.id}`)} style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+                    <button onClick={() => handleDeleteClick(submission)} style={{ padding: '6px 12px', background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.18)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
                   </div>
                 </div>
               </div>
             ))
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '28px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+              style={{ padding: '7px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: currentPage === 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+              ← Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)}
+                style={{ width: '34px', height: '34px', borderRadius: '8px', border: p === currentPage ? '1px solid rgba(99,102,241,0.4)' : '1px solid rgba(255,255,255,0.08)', background: p === currentPage ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)', color: p === currentPage ? '#818cf8' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '13px', fontWeight: p === currentPage ? 700 : 400, fontFamily: 'inherit' }}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              style={{ padding: '7px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: currentPage === totalPages ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+              Next →
+            </button>
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', marginLeft: '8px' }}>{filteredSubmissions.length} total</span>
+          </div>
+        )}
       </div>
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal
+          username={username}
+          onClose={() => {
+            setShowOnboarding(false)
+            localStorage.setItem('hasSeenOnboarding', 'true')
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -1928,6 +2327,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
     </div>
   )
 }
