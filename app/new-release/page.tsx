@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -38,6 +38,14 @@ const GENRES: { [key: string]: string[] } = {
 }
 
 export default function NewReleasePage() {
+  return (
+    <Suspense fallback={<div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#05050d' }}><div style={{ width:'32px', height:'32px', border:'3px solid rgba(255,255,255,0.08)', borderTop:'3px solid #6366f1', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>}>
+      <NewReleaseContent />
+    </Suspense>
+  )
+}
+
+function NewReleaseContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get('edit')
