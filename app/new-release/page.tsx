@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { upload } from '@vercel/blob/client'
 
 const TABS = [
   { id: 'release', label: 'Release information' },
@@ -167,23 +168,24 @@ function NewReleaseContent() {
     if (!coverFile) return coverPreview
     setUploadStatus('Uploading cover art...')
     setUploadProgress(10)
-    const fd = new FormData(); fd.append('file', coverFile); fd.append('type', 'cover')
-    const res = await fetch('/api/upload', { method: 'POST', body: fd })
-    const d = await res.json()
-    if (!d.success) throw new Error(d.error)
+    const blob = await upload(coverFile.name, coverFile, {
+      access: 'public',
+      handleUploadUrl: '/api/upload-token',
+    })
     setUploadProgress(30)
-    return d.url
+    return blob.url
   }
+
   const uploadTrack = async (file: File, idx: number) => {
     setUploadStatus(`Uploading track ${idx + 1} of ${tracks.length}...`)
-    const fd = new FormData(); fd.append('file', file); fd.append('type', 'track')
-    const res = await fetch('/api/upload', { method: 'POST', body: fd })
-    const d = await res.json()
-    if (!d.success) throw new Error(d.error)
+    const blob = await upload(file.name, file, {
+      access: 'public',
+      handleUploadUrl: '/api/upload-token',
+    })
     const pct = 30 + Math.round(((idx + 1) / tracks.length) * 60)
     setUploadProgress(pct)
     setTracks(prev => prev.map((t, i) => i === idx ? { ...t, uploadProgress: 100 } : t))
-    return d.url
+    return blob.url
   }
 
   const handleSubmit = async () => {
