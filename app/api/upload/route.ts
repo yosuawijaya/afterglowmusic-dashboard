@@ -5,14 +5,6 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// Increase body size limit for large audio files
-export const config = {
-  api: {
-    bodyParser: false,
-    responseLimit: false,
-  },
-}
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
